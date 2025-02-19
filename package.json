@@ -1,0 +1,20 @@
+{
+  "name": "incube-table",
+  "version": "1.0.0",
+  "description": "Automotion Test Package",
+  "main": "index.ts",
+  "author": "DARKi",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "scripts": {
+    "dev": "bun run index.ts"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1"
+  }
+}
