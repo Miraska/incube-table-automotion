@@ -103,3 +103,16 @@ model AutomationTestRun {
 
   @@map("automation_test_run")
 }
+
+model Base {
+  id String @id @default(cuid())
+
+}
+
+model Table {
+  id String @id @default(cuid())
+}
+
+model Record {
+  id String @id @default(cuid())
+}
