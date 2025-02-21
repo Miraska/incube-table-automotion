@@ -3,7 +3,7 @@ import LOG from "@lib/cmd/log";
 
 export default function automationManager(automation?: Interfaces.Automation): void {
     if (automation) {
-        switch(automation.trigger_type) {
+        switch(automation.triggerType) {
             case "onUpdate":
                 console.log(LOG.info("Это автоматизация срабатывает при обновлении (onUpdate)"));
                 break;

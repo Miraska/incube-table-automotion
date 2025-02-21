@@ -28,7 +28,8 @@
       "@lib/*": ["./lib/*"],
       "@configs/*": ["./configs/*"],
       "@configs": ["./configs/index.ts"],
-      "@interfaces": ["./interfaces/index.ts"]
+      "@interfaces": ["./interfaces/index.ts"],
+      "@prisma-schemas": ["./prisma/zod/index.ts"],
     }
   }
 }
