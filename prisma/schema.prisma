@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-ts"
+  provider = "npx zod-prisma-types"
+  output = "./generated/zod"
 }
 
 datasource db {
