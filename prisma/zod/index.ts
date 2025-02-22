@@ -62,21 +62,17 @@ export const AutomationActionScalarFieldEnumSchema = z.enum(['id','automationId'
 
 export const AutomationExecutionLogScalarFieldEnumSchema = z.enum(['id','automationId','status','eventData','result','error','executedAt']);
 
-export const AutomationTestRunScalarFieldEnumSchema = z.enum(['id','automationId','testData','result','status','executedAt']);
-
 export const BaseScalarFieldEnumSchema = z.enum(['id','name','spaceId']);
 
 export const SpaceScalarFieldEnumSchema = z.enum(['id','name']);
 
 export const TableScalarFieldEnumSchema = z.enum(['id','baseId','name']);
 
-export const FieldScalarFieldEnumSchema = z.enum(['id','name','tabelId','fieldType','data']);
+export const FieldScalarFieldEnumSchema = z.enum(['id','fieldId','name','tabelId','fieldType','value']);
 
 export const SortOrderSchema = z.enum(['asc','desc']);
 
 export const NullableJsonNullValueInputSchema = z.enum(['DbNull','JsonNull',]).transform((value) => value === 'JsonNull' ? Prisma.JsonNull : value === 'DbNull' ? Prisma.DbNull : value);
-
-export const JsonNullValueInputSchema = z.enum(['JsonNull',]).transform((value) => (value === 'JsonNull' ? Prisma.JsonNull : value));
 
 export const JsonNullValueFilterSchema = z.enum(['DbNull','JsonNull','AnyNull',]).transform((value) => value === 'JsonNull' ? Prisma.JsonNull : value === 'DbNull' ? Prisma.JsonNull : value === 'AnyNull' ? Prisma.AnyNull : value);
 
@@ -156,21 +152,6 @@ export const AutomationExecutionLogSchema = z.object({
 export type AutomationExecutionLog = z.infer<typeof AutomationExecutionLogSchema>
 
 /////////////////////////////////////////
-// AUTOMATION TEST RUN SCHEMA
-/////////////////////////////////////////
-
-export const AutomationTestRunSchema = z.object({
-  id: z.string().cuid(),
-  automationId: z.string(),
-  testData: JsonValueSchema,
-  result: JsonValueSchema.nullable(),
-  status: z.string(),
-  executedAt: z.coerce.date(),
-})
-
-export type AutomationTestRun = z.infer<typeof AutomationTestRunSchema>
-
-/////////////////////////////////////////
 // BASE SCHEMA
 /////////////////////////////////////////
 
@@ -212,9 +193,10 @@ export type Table = z.infer<typeof TableSchema>
 export const FieldSchema = z.object({
   fieldType: FieldTypeSchema,
   id: z.string().cuid(),
+  fieldId: z.string(),
   name: z.string(),
   tabelId: z.string(),
-  data: JsonValueSchema,
+  value: z.number().int(),
 })
 
 export type Field = z.infer<typeof FieldSchema>
@@ -229,7 +211,6 @@ export type Field = z.infer<typeof FieldSchema>
 export const AutomationIncludeSchema: z.ZodType<Prisma.AutomationInclude> = z.object({
   actions: z.union([z.boolean(),z.lazy(() => AutomationActionFindManyArgsSchema)]).optional(),
   AutomationExecutionLog: z.union([z.boolean(),z.lazy(() => AutomationExecutionLogFindManyArgsSchema)]).optional(),
-  AutomationTestRun: z.union([z.boolean(),z.lazy(() => AutomationTestRunFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => AutomationCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -245,7 +226,6 @@ export const AutomationCountOutputTypeArgsSchema: z.ZodType<Prisma.AutomationCou
 export const AutomationCountOutputTypeSelectSchema: z.ZodType<Prisma.AutomationCountOutputTypeSelect> = z.object({
   actions: z.boolean().optional(),
   AutomationExecutionLog: z.boolean().optional(),
-  AutomationTestRun: z.boolean().optional(),
 }).strict();
 
 export const AutomationSelectSchema: z.ZodType<Prisma.AutomationSelect> = z.object({
@@ -260,7 +240,6 @@ export const AutomationSelectSchema: z.ZodType<Prisma.AutomationSelect> = z.obje
   updatedTime: z.boolean().optional(),
   actions: z.union([z.boolean(),z.lazy(() => AutomationActionFindManyArgsSchema)]).optional(),
   AutomationExecutionLog: z.union([z.boolean(),z.lazy(() => AutomationExecutionLogFindManyArgsSchema)]).optional(),
-  AutomationTestRun: z.union([z.boolean(),z.lazy(() => AutomationTestRunFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => AutomationCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -307,28 +286,6 @@ export const AutomationExecutionLogSelectSchema: z.ZodType<Prisma.AutomationExec
   eventData: z.boolean().optional(),
   result: z.boolean().optional(),
   error: z.boolean().optional(),
-  executedAt: z.boolean().optional(),
-  automation: z.union([z.boolean(),z.lazy(() => AutomationArgsSchema)]).optional(),
-}).strict()
-
-// AUTOMATION TEST RUN
-//------------------------------------------------------
-
-export const AutomationTestRunIncludeSchema: z.ZodType<Prisma.AutomationTestRunInclude> = z.object({
-  automation: z.union([z.boolean(),z.lazy(() => AutomationArgsSchema)]).optional(),
-}).strict()
-
-export const AutomationTestRunArgsSchema: z.ZodType<Prisma.AutomationTestRunDefaultArgs> = z.object({
-  select: z.lazy(() => AutomationTestRunSelectSchema).optional(),
-  include: z.lazy(() => AutomationTestRunIncludeSchema).optional(),
-}).strict();
-
-export const AutomationTestRunSelectSchema: z.ZodType<Prisma.AutomationTestRunSelect> = z.object({
-  id: z.boolean().optional(),
-  automationId: z.boolean().optional(),
-  testData: z.boolean().optional(),
-  result: z.boolean().optional(),
-  status: z.boolean().optional(),
   executedAt: z.boolean().optional(),
   automation: z.union([z.boolean(),z.lazy(() => AutomationArgsSchema)]).optional(),
 }).strict()
@@ -437,10 +394,11 @@ export const FieldArgsSchema: z.ZodType<Prisma.FieldDefaultArgs> = z.object({
 
 export const FieldSelectSchema: z.ZodType<Prisma.FieldSelect> = z.object({
   id: z.boolean().optional(),
+  fieldId: z.boolean().optional(),
   name: z.boolean().optional(),
   tabelId: z.boolean().optional(),
   fieldType: z.boolean().optional(),
-  data: z.boolean().optional(),
+  value: z.boolean().optional(),
   table: z.union([z.boolean(),z.lazy(() => TableArgsSchema)]).optional(),
 }).strict()
 
@@ -463,8 +421,7 @@ export const AutomationWhereInputSchema: z.ZodType<Prisma.AutomationWhereInput> 
   createdBy: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
   updatedTime: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
   actions: z.lazy(() => AutomationActionListRelationFilterSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogListRelationFilterSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunListRelationFilterSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogListRelationFilterSchema).optional()
 }).strict();
 
 export const AutomationOrderByWithRelationInputSchema: z.ZodType<Prisma.AutomationOrderByWithRelationInput> = z.object({
@@ -478,8 +435,7 @@ export const AutomationOrderByWithRelationInputSchema: z.ZodType<Prisma.Automati
   createdBy: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
   updatedTime: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
   actions: z.lazy(() => AutomationActionOrderByRelationAggregateInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogOrderByRelationAggregateInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunOrderByRelationAggregateInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const AutomationWhereUniqueInputSchema: z.ZodType<Prisma.AutomationWhereUniqueInput> = z.object({
@@ -499,8 +455,7 @@ export const AutomationWhereUniqueInputSchema: z.ZodType<Prisma.AutomationWhereU
   createdBy: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
   updatedTime: z.union([ z.lazy(() => DateTimeNullableFilterSchema),z.coerce.date() ]).optional().nullable(),
   actions: z.lazy(() => AutomationActionListRelationFilterSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogListRelationFilterSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunListRelationFilterSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogListRelationFilterSchema).optional()
 }).strict());
 
 export const AutomationOrderByWithAggregationInputSchema: z.ZodType<Prisma.AutomationOrderByWithAggregationInput> = z.object({
@@ -676,69 +631,6 @@ export const AutomationExecutionLogScalarWhereWithAggregatesInputSchema: z.ZodTy
   executedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
-export const AutomationTestRunWhereInputSchema: z.ZodType<Prisma.AutomationTestRunWhereInput> = z.object({
-  AND: z.union([ z.lazy(() => AutomationTestRunWhereInputSchema),z.lazy(() => AutomationTestRunWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => AutomationTestRunWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => AutomationTestRunWhereInputSchema),z.lazy(() => AutomationTestRunWhereInputSchema).array() ]).optional(),
-  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  automationId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  testData: z.lazy(() => JsonFilterSchema).optional(),
-  result: z.lazy(() => JsonNullableFilterSchema).optional(),
-  status: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  executedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
-  automation: z.union([ z.lazy(() => AutomationScalarRelationFilterSchema),z.lazy(() => AutomationWhereInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationTestRunOrderByWithRelationInputSchema: z.ZodType<Prisma.AutomationTestRunOrderByWithRelationInput> = z.object({
-  id: z.lazy(() => SortOrderSchema).optional(),
-  automationId: z.lazy(() => SortOrderSchema).optional(),
-  testData: z.lazy(() => SortOrderSchema).optional(),
-  result: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
-  status: z.lazy(() => SortOrderSchema).optional(),
-  executedAt: z.lazy(() => SortOrderSchema).optional(),
-  automation: z.lazy(() => AutomationOrderByWithRelationInputSchema).optional()
-}).strict();
-
-export const AutomationTestRunWhereUniqueInputSchema: z.ZodType<Prisma.AutomationTestRunWhereUniqueInput> = z.object({
-  id: z.string().cuid()
-})
-.and(z.object({
-  id: z.string().cuid().optional(),
-  AND: z.union([ z.lazy(() => AutomationTestRunWhereInputSchema),z.lazy(() => AutomationTestRunWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => AutomationTestRunWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => AutomationTestRunWhereInputSchema),z.lazy(() => AutomationTestRunWhereInputSchema).array() ]).optional(),
-  automationId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  testData: z.lazy(() => JsonFilterSchema).optional(),
-  result: z.lazy(() => JsonNullableFilterSchema).optional(),
-  status: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  executedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
-  automation: z.union([ z.lazy(() => AutomationScalarRelationFilterSchema),z.lazy(() => AutomationWhereInputSchema) ]).optional(),
-}).strict());
-
-export const AutomationTestRunOrderByWithAggregationInputSchema: z.ZodType<Prisma.AutomationTestRunOrderByWithAggregationInput> = z.object({
-  id: z.lazy(() => SortOrderSchema).optional(),
-  automationId: z.lazy(() => SortOrderSchema).optional(),
-  testData: z.lazy(() => SortOrderSchema).optional(),
-  result: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
-  status: z.lazy(() => SortOrderSchema).optional(),
-  executedAt: z.lazy(() => SortOrderSchema).optional(),
-  _count: z.lazy(() => AutomationTestRunCountOrderByAggregateInputSchema).optional(),
-  _max: z.lazy(() => AutomationTestRunMaxOrderByAggregateInputSchema).optional(),
-  _min: z.lazy(() => AutomationTestRunMinOrderByAggregateInputSchema).optional()
-}).strict();
-
-export const AutomationTestRunScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.AutomationTestRunScalarWhereWithAggregatesInput> = z.object({
-  AND: z.union([ z.lazy(() => AutomationTestRunScalarWhereWithAggregatesInputSchema),z.lazy(() => AutomationTestRunScalarWhereWithAggregatesInputSchema).array() ]).optional(),
-  OR: z.lazy(() => AutomationTestRunScalarWhereWithAggregatesInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => AutomationTestRunScalarWhereWithAggregatesInputSchema),z.lazy(() => AutomationTestRunScalarWhereWithAggregatesInputSchema).array() ]).optional(),
-  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  automationId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  testData: z.lazy(() => JsonWithAggregatesFilterSchema).optional(),
-  result: z.lazy(() => JsonNullableWithAggregatesFilterSchema).optional(),
-  status: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
-  executedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
-}).strict();
-
 export const BaseWhereInputSchema: z.ZodType<Prisma.BaseWhereInput> = z.object({
   AND: z.union([ z.lazy(() => BaseWhereInputSchema),z.lazy(() => BaseWhereInputSchema).array() ]).optional(),
   OR: z.lazy(() => BaseWhereInputSchema).array().optional(),
@@ -889,19 +781,21 @@ export const FieldWhereInputSchema: z.ZodType<Prisma.FieldWhereInput> = z.object
   OR: z.lazy(() => FieldWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => FieldWhereInputSchema),z.lazy(() => FieldWhereInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  fieldId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   name: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   tabelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   fieldType: z.union([ z.lazy(() => EnumFieldTypeFilterSchema),z.lazy(() => FieldTypeSchema) ]).optional(),
-  data: z.lazy(() => JsonFilterSchema).optional(),
+  value: z.union([ z.lazy(() => IntFilterSchema),z.number() ]).optional(),
   table: z.union([ z.lazy(() => TableScalarRelationFilterSchema),z.lazy(() => TableWhereInputSchema) ]).optional(),
 }).strict();
 
 export const FieldOrderByWithRelationInputSchema: z.ZodType<Prisma.FieldOrderByWithRelationInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  fieldId: z.lazy(() => SortOrderSchema).optional(),
   name: z.lazy(() => SortOrderSchema).optional(),
   tabelId: z.lazy(() => SortOrderSchema).optional(),
   fieldType: z.lazy(() => SortOrderSchema).optional(),
-  data: z.lazy(() => SortOrderSchema).optional(),
+  value: z.lazy(() => SortOrderSchema).optional(),
   table: z.lazy(() => TableOrderByWithRelationInputSchema).optional()
 }).strict();
 
@@ -913,22 +807,26 @@ export const FieldWhereUniqueInputSchema: z.ZodType<Prisma.FieldWhereUniqueInput
   AND: z.union([ z.lazy(() => FieldWhereInputSchema),z.lazy(() => FieldWhereInputSchema).array() ]).optional(),
   OR: z.lazy(() => FieldWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => FieldWhereInputSchema),z.lazy(() => FieldWhereInputSchema).array() ]).optional(),
+  fieldId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   name: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   tabelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   fieldType: z.union([ z.lazy(() => EnumFieldTypeFilterSchema),z.lazy(() => FieldTypeSchema) ]).optional(),
-  data: z.lazy(() => JsonFilterSchema).optional(),
+  value: z.union([ z.lazy(() => IntFilterSchema),z.number().int() ]).optional(),
   table: z.union([ z.lazy(() => TableScalarRelationFilterSchema),z.lazy(() => TableWhereInputSchema) ]).optional(),
 }).strict());
 
 export const FieldOrderByWithAggregationInputSchema: z.ZodType<Prisma.FieldOrderByWithAggregationInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  fieldId: z.lazy(() => SortOrderSchema).optional(),
   name: z.lazy(() => SortOrderSchema).optional(),
   tabelId: z.lazy(() => SortOrderSchema).optional(),
   fieldType: z.lazy(() => SortOrderSchema).optional(),
-  data: z.lazy(() => SortOrderSchema).optional(),
+  value: z.lazy(() => SortOrderSchema).optional(),
   _count: z.lazy(() => FieldCountOrderByAggregateInputSchema).optional(),
+  _avg: z.lazy(() => FieldAvgOrderByAggregateInputSchema).optional(),
   _max: z.lazy(() => FieldMaxOrderByAggregateInputSchema).optional(),
-  _min: z.lazy(() => FieldMinOrderByAggregateInputSchema).optional()
+  _min: z.lazy(() => FieldMinOrderByAggregateInputSchema).optional(),
+  _sum: z.lazy(() => FieldSumOrderByAggregateInputSchema).optional()
 }).strict();
 
 export const FieldScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.FieldScalarWhereWithAggregatesInput> = z.object({
@@ -936,10 +834,11 @@ export const FieldScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.FieldSc
   OR: z.lazy(() => FieldScalarWhereWithAggregatesInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => FieldScalarWhereWithAggregatesInputSchema),z.lazy(() => FieldScalarWhereWithAggregatesInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  fieldId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   name: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   tabelId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
   fieldType: z.union([ z.lazy(() => EnumFieldTypeWithAggregatesFilterSchema),z.lazy(() => FieldTypeSchema) ]).optional(),
-  data: z.lazy(() => JsonWithAggregatesFilterSchema).optional()
+  value: z.union([ z.lazy(() => IntWithAggregatesFilterSchema),z.number() ]).optional(),
 }).strict();
 
 export const AutomationCreateInputSchema: z.ZodType<Prisma.AutomationCreateInput> = z.object({
@@ -953,8 +852,7 @@ export const AutomationCreateInputSchema: z.ZodType<Prisma.AutomationCreateInput
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
   actions: z.lazy(() => AutomationActionCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunCreateNestedManyWithoutAutomationInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedCreateInputSchema: z.ZodType<Prisma.AutomationUncheckedCreateInput> = z.object({
@@ -968,8 +866,7 @@ export const AutomationUncheckedCreateInputSchema: z.ZodType<Prisma.AutomationUn
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
   actions: z.lazy(() => AutomationActionUncheckedCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationUpdateInputSchema: z.ZodType<Prisma.AutomationUpdateInput> = z.object({
@@ -983,8 +880,7 @@ export const AutomationUpdateInputSchema: z.ZodType<Prisma.AutomationUpdateInput
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   actions: z.lazy(() => AutomationActionUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUpdateManyWithoutAutomationNestedInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedUpdateInputSchema: z.ZodType<Prisma.AutomationUncheckedUpdateInput> = z.object({
@@ -998,8 +894,7 @@ export const AutomationUncheckedUpdateInputSchema: z.ZodType<Prisma.AutomationUn
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   actions: z.lazy(() => AutomationActionUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const AutomationCreateManyInputSchema: z.ZodType<Prisma.AutomationCreateManyInput> = z.object({
@@ -1183,68 +1078,6 @@ export const AutomationExecutionLogUncheckedUpdateManyInputSchema: z.ZodType<Pri
   executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const AutomationTestRunCreateInputSchema: z.ZodType<Prisma.AutomationTestRunCreateInput> = z.object({
-  id: z.string().cuid().optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional(),
-  automation: z.lazy(() => AutomationCreateNestedOneWithoutAutomationTestRunInputSchema)
-}).strict();
-
-export const AutomationTestRunUncheckedCreateInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedCreateInput> = z.object({
-  id: z.string().cuid().optional(),
-  automationId: z.string(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional()
-}).strict();
-
-export const AutomationTestRunUpdateInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  automation: z.lazy(() => AutomationUpdateOneRequiredWithoutAutomationTestRunNestedInputSchema).optional()
-}).strict();
-
-export const AutomationTestRunUncheckedUpdateInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedUpdateInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  automationId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationTestRunCreateManyInputSchema: z.ZodType<Prisma.AutomationTestRunCreateManyInput> = z.object({
-  id: z.string().cuid().optional(),
-  automationId: z.string(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional()
-}).strict();
-
-export const AutomationTestRunUpdateManyMutationInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateManyMutationInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationTestRunUncheckedUpdateManyInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedUpdateManyInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  automationId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
 export const BaseCreateInputSchema: z.ZodType<Prisma.BaseCreateInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string(),
@@ -1376,57 +1209,64 @@ export const TableUncheckedUpdateManyInputSchema: z.ZodType<Prisma.TableUnchecke
 
 export const FieldCreateInputSchema: z.ZodType<Prisma.FieldCreateInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int(),
   table: z.lazy(() => TableCreateNestedOneWithoutFieldsInputSchema)
 }).strict();
 
 export const FieldUncheckedCreateInputSchema: z.ZodType<Prisma.FieldUncheckedCreateInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   tabelId: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int()
 }).strict();
 
 export const FieldUpdateInputSchema: z.ZodType<Prisma.FieldUpdateInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
   table: z.lazy(() => TableUpdateOneRequiredWithoutFieldsNestedInputSchema).optional()
 }).strict();
 
 export const FieldUncheckedUpdateInputSchema: z.ZodType<Prisma.FieldUncheckedUpdateInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   tabelId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const FieldCreateManyInputSchema: z.ZodType<Prisma.FieldCreateManyInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   tabelId: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int()
 }).strict();
 
 export const FieldUpdateManyMutationInputSchema: z.ZodType<Prisma.FieldUpdateManyMutationInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const FieldUncheckedUpdateManyInputSchema: z.ZodType<Prisma.FieldUncheckedUpdateManyInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   tabelId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const StringFilterSchema: z.ZodType<Prisma.StringFilter> = z.object({
@@ -1515,12 +1355,6 @@ export const AutomationExecutionLogListRelationFilterSchema: z.ZodType<Prisma.Au
   none: z.lazy(() => AutomationExecutionLogWhereInputSchema).optional()
 }).strict();
 
-export const AutomationTestRunListRelationFilterSchema: z.ZodType<Prisma.AutomationTestRunListRelationFilter> = z.object({
-  every: z.lazy(() => AutomationTestRunWhereInputSchema).optional(),
-  some: z.lazy(() => AutomationTestRunWhereInputSchema).optional(),
-  none: z.lazy(() => AutomationTestRunWhereInputSchema).optional()
-}).strict();
-
 export const SortOrderInputSchema: z.ZodType<Prisma.SortOrderInput> = z.object({
   sort: z.lazy(() => SortOrderSchema),
   nulls: z.lazy(() => NullsOrderSchema).optional()
@@ -1531,10 +1365,6 @@ export const AutomationActionOrderByRelationAggregateInputSchema: z.ZodType<Pris
 }).strict();
 
 export const AutomationExecutionLogOrderByRelationAggregateInputSchema: z.ZodType<Prisma.AutomationExecutionLogOrderByRelationAggregateInput> = z.object({
-  _count: z.lazy(() => SortOrderSchema).optional()
-}).strict();
-
-export const AutomationTestRunOrderByRelationAggregateInputSchema: z.ZodType<Prisma.AutomationTestRunOrderByRelationAggregateInput> = z.object({
   _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
@@ -1794,56 +1624,6 @@ export const EnumStatusTypeNullableWithAggregatesFilterSchema: z.ZodType<Prisma.
   _max: z.lazy(() => NestedEnumStatusTypeNullableFilterSchema).optional()
 }).strict();
 
-export const JsonFilterSchema: z.ZodType<Prisma.JsonFilter> = z.object({
-  equals: InputJsonValueSchema.optional(),
-  path: z.string().optional(),
-  mode: z.lazy(() => QueryModeSchema).optional(),
-  string_contains: z.string().optional(),
-  string_starts_with: z.string().optional(),
-  string_ends_with: z.string().optional(),
-  array_starts_with: InputJsonValueSchema.optional().nullable(),
-  array_ends_with: InputJsonValueSchema.optional().nullable(),
-  not: InputJsonValueSchema.optional()
-}).strict();
-
-export const AutomationTestRunCountOrderByAggregateInputSchema: z.ZodType<Prisma.AutomationTestRunCountOrderByAggregateInput> = z.object({
-  id: z.lazy(() => SortOrderSchema).optional(),
-  automationId: z.lazy(() => SortOrderSchema).optional(),
-  testData: z.lazy(() => SortOrderSchema).optional(),
-  result: z.lazy(() => SortOrderSchema).optional(),
-  status: z.lazy(() => SortOrderSchema).optional(),
-  executedAt: z.lazy(() => SortOrderSchema).optional()
-}).strict();
-
-export const AutomationTestRunMaxOrderByAggregateInputSchema: z.ZodType<Prisma.AutomationTestRunMaxOrderByAggregateInput> = z.object({
-  id: z.lazy(() => SortOrderSchema).optional(),
-  automationId: z.lazy(() => SortOrderSchema).optional(),
-  status: z.lazy(() => SortOrderSchema).optional(),
-  executedAt: z.lazy(() => SortOrderSchema).optional()
-}).strict();
-
-export const AutomationTestRunMinOrderByAggregateInputSchema: z.ZodType<Prisma.AutomationTestRunMinOrderByAggregateInput> = z.object({
-  id: z.lazy(() => SortOrderSchema).optional(),
-  automationId: z.lazy(() => SortOrderSchema).optional(),
-  status: z.lazy(() => SortOrderSchema).optional(),
-  executedAt: z.lazy(() => SortOrderSchema).optional()
-}).strict();
-
-export const JsonWithAggregatesFilterSchema: z.ZodType<Prisma.JsonWithAggregatesFilter> = z.object({
-  equals: InputJsonValueSchema.optional(),
-  path: z.string().optional(),
-  mode: z.lazy(() => QueryModeSchema).optional(),
-  string_contains: z.string().optional(),
-  string_starts_with: z.string().optional(),
-  string_ends_with: z.string().optional(),
-  array_starts_with: InputJsonValueSchema.optional().nullable(),
-  array_ends_with: InputJsonValueSchema.optional().nullable(),
-  not: InputJsonValueSchema.optional(),
-  _count: z.lazy(() => NestedIntFilterSchema).optional(),
-  _min: z.lazy(() => NestedJsonFilterSchema).optional(),
-  _max: z.lazy(() => NestedJsonFilterSchema).optional()
-}).strict();
-
 export const TableListRelationFilterSchema: z.ZodType<Prisma.TableListRelationFilter> = z.object({
   every: z.lazy(() => TableWhereInputSchema).optional(),
   some: z.lazy(() => TableWhereInputSchema).optional(),
@@ -1949,24 +1729,37 @@ export const TableScalarRelationFilterSchema: z.ZodType<Prisma.TableScalarRelati
 
 export const FieldCountOrderByAggregateInputSchema: z.ZodType<Prisma.FieldCountOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  fieldId: z.lazy(() => SortOrderSchema).optional(),
   name: z.lazy(() => SortOrderSchema).optional(),
   tabelId: z.lazy(() => SortOrderSchema).optional(),
   fieldType: z.lazy(() => SortOrderSchema).optional(),
-  data: z.lazy(() => SortOrderSchema).optional()
+  value: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const FieldAvgOrderByAggregateInputSchema: z.ZodType<Prisma.FieldAvgOrderByAggregateInput> = z.object({
+  value: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const FieldMaxOrderByAggregateInputSchema: z.ZodType<Prisma.FieldMaxOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  fieldId: z.lazy(() => SortOrderSchema).optional(),
   name: z.lazy(() => SortOrderSchema).optional(),
   tabelId: z.lazy(() => SortOrderSchema).optional(),
-  fieldType: z.lazy(() => SortOrderSchema).optional()
+  fieldType: z.lazy(() => SortOrderSchema).optional(),
+  value: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const FieldMinOrderByAggregateInputSchema: z.ZodType<Prisma.FieldMinOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
+  fieldId: z.lazy(() => SortOrderSchema).optional(),
   name: z.lazy(() => SortOrderSchema).optional(),
   tabelId: z.lazy(() => SortOrderSchema).optional(),
-  fieldType: z.lazy(() => SortOrderSchema).optional()
+  fieldType: z.lazy(() => SortOrderSchema).optional(),
+  value: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const FieldSumOrderByAggregateInputSchema: z.ZodType<Prisma.FieldSumOrderByAggregateInput> = z.object({
+  value: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const EnumFieldTypeWithAggregatesFilterSchema: z.ZodType<Prisma.EnumFieldTypeWithAggregatesFilter> = z.object({
@@ -1993,13 +1786,6 @@ export const AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema:
   connect: z.union([ z.lazy(() => AutomationExecutionLogWhereUniqueInputSchema),z.lazy(() => AutomationExecutionLogWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const AutomationTestRunCreateNestedManyWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunCreateNestedManyWithoutAutomationInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => AutomationTestRunCreateManyAutomationInputEnvelopeSchema).optional(),
-  connect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-}).strict();
-
 export const AutomationActionUncheckedCreateNestedManyWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationActionUncheckedCreateNestedManyWithoutAutomationInput> = z.object({
   create: z.union([ z.lazy(() => AutomationActionCreateWithoutAutomationInputSchema),z.lazy(() => AutomationActionCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationActionUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationActionUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
   connectOrCreate: z.union([ z.lazy(() => AutomationActionCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationActionCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
@@ -2012,13 +1798,6 @@ export const AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInp
   connectOrCreate: z.union([ z.lazy(() => AutomationExecutionLogCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationExecutionLogCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
   createMany: z.lazy(() => AutomationExecutionLogCreateManyAutomationInputEnvelopeSchema).optional(),
   connect: z.union([ z.lazy(() => AutomationExecutionLogWhereUniqueInputSchema),z.lazy(() => AutomationExecutionLogWhereUniqueInputSchema).array() ]).optional(),
-}).strict();
-
-export const AutomationTestRunUncheckedCreateNestedManyWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedCreateNestedManyWithoutAutomationInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => AutomationTestRunCreateManyAutomationInputEnvelopeSchema).optional(),
-  connect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const StringFieldUpdateOperationsInputSchema: z.ZodType<Prisma.StringFieldUpdateOperationsInput> = z.object({
@@ -2073,20 +1852,6 @@ export const AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema:
   deleteMany: z.union([ z.lazy(() => AutomationExecutionLogScalarWhereInputSchema),z.lazy(() => AutomationExecutionLogScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const AutomationTestRunUpdateManyWithoutAutomationNestedInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateManyWithoutAutomationNestedInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => AutomationTestRunCreateManyAutomationInputEnvelopeSchema).optional(),
-  set: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  disconnect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  delete: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  connect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => AutomationTestRunUpdateManyWithWhereWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpdateManyWithWhereWithoutAutomationInputSchema).array() ]).optional(),
-  deleteMany: z.union([ z.lazy(() => AutomationTestRunScalarWhereInputSchema),z.lazy(() => AutomationTestRunScalarWhereInputSchema).array() ]).optional(),
-}).strict();
-
 export const AutomationActionUncheckedUpdateManyWithoutAutomationNestedInputSchema: z.ZodType<Prisma.AutomationActionUncheckedUpdateManyWithoutAutomationNestedInput> = z.object({
   create: z.union([ z.lazy(() => AutomationActionCreateWithoutAutomationInputSchema),z.lazy(() => AutomationActionCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationActionUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationActionUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
   connectOrCreate: z.union([ z.lazy(() => AutomationActionCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationActionCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
@@ -2113,20 +1878,6 @@ export const AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInp
   update: z.union([ z.lazy(() => AutomationExecutionLogUpdateWithWhereUniqueWithoutAutomationInputSchema),z.lazy(() => AutomationExecutionLogUpdateWithWhereUniqueWithoutAutomationInputSchema).array() ]).optional(),
   updateMany: z.union([ z.lazy(() => AutomationExecutionLogUpdateManyWithWhereWithoutAutomationInputSchema),z.lazy(() => AutomationExecutionLogUpdateManyWithWhereWithoutAutomationInputSchema).array() ]).optional(),
   deleteMany: z.union([ z.lazy(() => AutomationExecutionLogScalarWhereInputSchema),z.lazy(() => AutomationExecutionLogScalarWhereInputSchema).array() ]).optional(),
-}).strict();
-
-export const AutomationTestRunUncheckedUpdateManyWithoutAutomationNestedInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedUpdateManyWithoutAutomationNestedInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema).array(),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema).array() ]).optional(),
-  connectOrCreate: z.union([ z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunCreateOrConnectWithoutAutomationInputSchema).array() ]).optional(),
-  upsert: z.union([ z.lazy(() => AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInputSchema).array() ]).optional(),
-  createMany: z.lazy(() => AutomationTestRunCreateManyAutomationInputEnvelopeSchema).optional(),
-  set: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  disconnect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  delete: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  connect: z.union([ z.lazy(() => AutomationTestRunWhereUniqueInputSchema),z.lazy(() => AutomationTestRunWhereUniqueInputSchema).array() ]).optional(),
-  update: z.union([ z.lazy(() => AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInputSchema).array() ]).optional(),
-  updateMany: z.union([ z.lazy(() => AutomationTestRunUpdateManyWithWhereWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUpdateManyWithWhereWithoutAutomationInputSchema).array() ]).optional(),
-  deleteMany: z.union([ z.lazy(() => AutomationTestRunScalarWhereInputSchema),z.lazy(() => AutomationTestRunScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const AutomationCreateNestedOneWithoutActionsInputSchema: z.ZodType<Prisma.AutomationCreateNestedOneWithoutActionsInput> = z.object({
@@ -2171,20 +1922,6 @@ export const AutomationUpdateOneRequiredWithoutAutomationExecutionLogNestedInput
   upsert: z.lazy(() => AutomationUpsertWithoutAutomationExecutionLogInputSchema).optional(),
   connect: z.lazy(() => AutomationWhereUniqueInputSchema).optional(),
   update: z.union([ z.lazy(() => AutomationUpdateToOneWithWhereWithoutAutomationExecutionLogInputSchema),z.lazy(() => AutomationUpdateWithoutAutomationExecutionLogInputSchema),z.lazy(() => AutomationUncheckedUpdateWithoutAutomationExecutionLogInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationCreateNestedOneWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationCreateNestedOneWithoutAutomationTestRunInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationCreateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedCreateWithoutAutomationTestRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => AutomationCreateOrConnectWithoutAutomationTestRunInputSchema).optional(),
-  connect: z.lazy(() => AutomationWhereUniqueInputSchema).optional()
-}).strict();
-
-export const AutomationUpdateOneRequiredWithoutAutomationTestRunNestedInputSchema: z.ZodType<Prisma.AutomationUpdateOneRequiredWithoutAutomationTestRunNestedInput> = z.object({
-  create: z.union([ z.lazy(() => AutomationCreateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedCreateWithoutAutomationTestRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => AutomationCreateOrConnectWithoutAutomationTestRunInputSchema).optional(),
-  upsert: z.lazy(() => AutomationUpsertWithoutAutomationTestRunInputSchema).optional(),
-  connect: z.lazy(() => AutomationWhereUniqueInputSchema).optional(),
-  update: z.union([ z.lazy(() => AutomationUpdateToOneWithWhereWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUpdateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedUpdateWithoutAutomationTestRunInputSchema) ]).optional(),
 }).strict();
 
 export const TableCreateNestedManyWithoutBaseInputSchema: z.ZodType<Prisma.TableCreateNestedManyWithoutBaseInput> = z.object({
@@ -2596,18 +2333,6 @@ export const NestedEnumStatusTypeNullableWithAggregatesFilterSchema: z.ZodType<P
   _max: z.lazy(() => NestedEnumStatusTypeNullableFilterSchema).optional()
 }).strict();
 
-export const NestedJsonFilterSchema: z.ZodType<Prisma.NestedJsonFilter> = z.object({
-  equals: InputJsonValueSchema.optional(),
-  path: z.string().optional(),
-  mode: z.lazy(() => QueryModeSchema).optional(),
-  string_contains: z.string().optional(),
-  string_starts_with: z.string().optional(),
-  string_ends_with: z.string().optional(),
-  array_starts_with: InputJsonValueSchema.optional().nullable(),
-  array_ends_with: InputJsonValueSchema.optional().nullable(),
-  not: InputJsonValueSchema.optional()
-}).strict();
-
 export const NestedEnumFieldTypeFilterSchema: z.ZodType<Prisma.NestedEnumFieldTypeFilter> = z.object({
   equals: z.lazy(() => FieldTypeSchema).optional(),
   in: z.lazy(() => FieldTypeSchema).array().optional(),
@@ -2681,31 +2406,6 @@ export const AutomationExecutionLogCreateManyAutomationInputEnvelopeSchema: z.Zo
   data: z.union([ z.lazy(() => AutomationExecutionLogCreateManyAutomationInputSchema),z.lazy(() => AutomationExecutionLogCreateManyAutomationInputSchema).array() ]),
 }).strict();
 
-export const AutomationTestRunCreateWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunCreateWithoutAutomationInput> = z.object({
-  id: z.string().cuid().optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional()
-}).strict();
-
-export const AutomationTestRunUncheckedCreateWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedCreateWithoutAutomationInput> = z.object({
-  id: z.string().cuid().optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional()
-}).strict();
-
-export const AutomationTestRunCreateOrConnectWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunCreateOrConnectWithoutAutomationInput> = z.object({
-  where: z.lazy(() => AutomationTestRunWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema) ]),
-}).strict();
-
-export const AutomationTestRunCreateManyAutomationInputEnvelopeSchema: z.ZodType<Prisma.AutomationTestRunCreateManyAutomationInputEnvelope> = z.object({
-  data: z.union([ z.lazy(() => AutomationTestRunCreateManyAutomationInputSchema),z.lazy(() => AutomationTestRunCreateManyAutomationInputSchema).array() ]),
-}).strict();
-
 export const AutomationActionUpsertWithWhereUniqueWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationActionUpsertWithWhereUniqueWithoutAutomationInput> = z.object({
   where: z.lazy(() => AutomationActionWhereUniqueInputSchema),
   update: z.union([ z.lazy(() => AutomationActionUpdateWithoutAutomationInputSchema),z.lazy(() => AutomationActionUncheckedUpdateWithoutAutomationInputSchema) ]),
@@ -2765,34 +2465,6 @@ export const AutomationExecutionLogScalarWhereInputSchema: z.ZodType<Prisma.Auto
   executedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
-export const AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUpsertWithWhereUniqueWithoutAutomationInput> = z.object({
-  where: z.lazy(() => AutomationTestRunWhereUniqueInputSchema),
-  update: z.union([ z.lazy(() => AutomationTestRunUpdateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedUpdateWithoutAutomationInputSchema) ]),
-  create: z.union([ z.lazy(() => AutomationTestRunCreateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedCreateWithoutAutomationInputSchema) ]),
-}).strict();
-
-export const AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateWithWhereUniqueWithoutAutomationInput> = z.object({
-  where: z.lazy(() => AutomationTestRunWhereUniqueInputSchema),
-  data: z.union([ z.lazy(() => AutomationTestRunUpdateWithoutAutomationInputSchema),z.lazy(() => AutomationTestRunUncheckedUpdateWithoutAutomationInputSchema) ]),
-}).strict();
-
-export const AutomationTestRunUpdateManyWithWhereWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateManyWithWhereWithoutAutomationInput> = z.object({
-  where: z.lazy(() => AutomationTestRunScalarWhereInputSchema),
-  data: z.union([ z.lazy(() => AutomationTestRunUpdateManyMutationInputSchema),z.lazy(() => AutomationTestRunUncheckedUpdateManyWithoutAutomationInputSchema) ]),
-}).strict();
-
-export const AutomationTestRunScalarWhereInputSchema: z.ZodType<Prisma.AutomationTestRunScalarWhereInput> = z.object({
-  AND: z.union([ z.lazy(() => AutomationTestRunScalarWhereInputSchema),z.lazy(() => AutomationTestRunScalarWhereInputSchema).array() ]).optional(),
-  OR: z.lazy(() => AutomationTestRunScalarWhereInputSchema).array().optional(),
-  NOT: z.union([ z.lazy(() => AutomationTestRunScalarWhereInputSchema),z.lazy(() => AutomationTestRunScalarWhereInputSchema).array() ]).optional(),
-  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  automationId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  testData: z.lazy(() => JsonFilterSchema).optional(),
-  result: z.lazy(() => JsonNullableFilterSchema).optional(),
-  status: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
-  executedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
-}).strict();
-
 export const AutomationCreateWithoutActionsInputSchema: z.ZodType<Prisma.AutomationCreateWithoutActionsInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string(),
@@ -2803,8 +2475,7 @@ export const AutomationCreateWithoutActionsInputSchema: z.ZodType<Prisma.Automat
   createdTime: z.coerce.date().optional(),
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunCreateNestedManyWithoutAutomationInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedCreateWithoutActionsInputSchema: z.ZodType<Prisma.AutomationUncheckedCreateWithoutActionsInput> = z.object({
@@ -2817,8 +2488,7 @@ export const AutomationUncheckedCreateWithoutActionsInputSchema: z.ZodType<Prism
   createdTime: z.coerce.date().optional(),
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationCreateOrConnectWithoutActionsInputSchema: z.ZodType<Prisma.AutomationCreateOrConnectWithoutActionsInput> = z.object({
@@ -2847,8 +2517,7 @@ export const AutomationUpdateWithoutActionsInputSchema: z.ZodType<Prisma.Automat
   createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUpdateManyWithoutAutomationNestedInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedUpdateWithoutActionsInputSchema: z.ZodType<Prisma.AutomationUncheckedUpdateWithoutActionsInput> = z.object({
@@ -2861,8 +2530,7 @@ export const AutomationUncheckedUpdateWithoutActionsInputSchema: z.ZodType<Prism
   createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
+  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const AutomationCreateWithoutAutomationExecutionLogInputSchema: z.ZodType<Prisma.AutomationCreateWithoutAutomationExecutionLogInput> = z.object({
@@ -2875,8 +2543,7 @@ export const AutomationCreateWithoutAutomationExecutionLogInputSchema: z.ZodType
   createdTime: z.coerce.date().optional(),
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
-  actions: z.lazy(() => AutomationActionCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunCreateNestedManyWithoutAutomationInputSchema).optional()
+  actions: z.lazy(() => AutomationActionCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedCreateWithoutAutomationExecutionLogInputSchema: z.ZodType<Prisma.AutomationUncheckedCreateWithoutAutomationExecutionLogInput> = z.object({
@@ -2889,8 +2556,7 @@ export const AutomationUncheckedCreateWithoutAutomationExecutionLogInputSchema: 
   createdTime: z.coerce.date().optional(),
   createdBy: z.string().optional().nullable(),
   updatedTime: z.coerce.date().optional().nullable(),
-  actions: z.lazy(() => AutomationActionUncheckedCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
+  actions: z.lazy(() => AutomationActionUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
 }).strict();
 
 export const AutomationCreateOrConnectWithoutAutomationExecutionLogInputSchema: z.ZodType<Prisma.AutomationCreateOrConnectWithoutAutomationExecutionLogInput> = z.object({
@@ -2919,8 +2585,7 @@ export const AutomationUpdateWithoutAutomationExecutionLogInputSchema: z.ZodType
   createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  actions: z.lazy(() => AutomationActionUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUpdateManyWithoutAutomationNestedInputSchema).optional()
+  actions: z.lazy(() => AutomationActionUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const AutomationUncheckedUpdateWithoutAutomationExecutionLogInputSchema: z.ZodType<Prisma.AutomationUncheckedUpdateWithoutAutomationExecutionLogInput> = z.object({
@@ -2933,80 +2598,7 @@ export const AutomationUncheckedUpdateWithoutAutomationExecutionLogInputSchema: 
   createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  actions: z.lazy(() => AutomationActionUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationTestRun: z.lazy(() => AutomationTestRunUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
-}).strict();
-
-export const AutomationCreateWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationCreateWithoutAutomationTestRunInput> = z.object({
-  id: z.string().cuid().optional(),
-  name: z.string(),
-  triggerType: z.lazy(() => AutomationTriggerTypeSchema),
-  triggerConfig: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  conditions: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  enabled: z.boolean().optional(),
-  createdTime: z.coerce.date().optional(),
-  createdBy: z.string().optional().nullable(),
-  updatedTime: z.coerce.date().optional().nullable(),
-  actions: z.lazy(() => AutomationActionCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogCreateNestedManyWithoutAutomationInputSchema).optional()
-}).strict();
-
-export const AutomationUncheckedCreateWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationUncheckedCreateWithoutAutomationTestRunInput> = z.object({
-  id: z.string().cuid().optional(),
-  name: z.string(),
-  triggerType: z.lazy(() => AutomationTriggerTypeSchema),
-  triggerConfig: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  conditions: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  enabled: z.boolean().optional(),
-  createdTime: z.coerce.date().optional(),
-  createdBy: z.string().optional().nullable(),
-  updatedTime: z.coerce.date().optional().nullable(),
-  actions: z.lazy(() => AutomationActionUncheckedCreateNestedManyWithoutAutomationInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedCreateNestedManyWithoutAutomationInputSchema).optional()
-}).strict();
-
-export const AutomationCreateOrConnectWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationCreateOrConnectWithoutAutomationTestRunInput> = z.object({
-  where: z.lazy(() => AutomationWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => AutomationCreateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedCreateWithoutAutomationTestRunInputSchema) ]),
-}).strict();
-
-export const AutomationUpsertWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationUpsertWithoutAutomationTestRunInput> = z.object({
-  update: z.union([ z.lazy(() => AutomationUpdateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedUpdateWithoutAutomationTestRunInputSchema) ]),
-  create: z.union([ z.lazy(() => AutomationCreateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedCreateWithoutAutomationTestRunInputSchema) ]),
-  where: z.lazy(() => AutomationWhereInputSchema).optional()
-}).strict();
-
-export const AutomationUpdateToOneWithWhereWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationUpdateToOneWithWhereWithoutAutomationTestRunInput> = z.object({
-  where: z.lazy(() => AutomationWhereInputSchema).optional(),
-  data: z.union([ z.lazy(() => AutomationUpdateWithoutAutomationTestRunInputSchema),z.lazy(() => AutomationUncheckedUpdateWithoutAutomationTestRunInputSchema) ]),
-}).strict();
-
-export const AutomationUpdateWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationUpdateWithoutAutomationTestRunInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  triggerType: z.union([ z.lazy(() => AutomationTriggerTypeSchema),z.lazy(() => EnumAutomationTriggerTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  triggerConfig: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  conditions: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  enabled: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  actions: z.lazy(() => AutomationActionUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUpdateManyWithoutAutomationNestedInputSchema).optional()
-}).strict();
-
-export const AutomationUncheckedUpdateWithoutAutomationTestRunInputSchema: z.ZodType<Prisma.AutomationUncheckedUpdateWithoutAutomationTestRunInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  triggerType: z.union([ z.lazy(() => AutomationTriggerTypeSchema),z.lazy(() => EnumAutomationTriggerTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  triggerConfig: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  conditions: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  enabled: z.union([ z.boolean(),z.lazy(() => BoolFieldUpdateOperationsInputSchema) ]).optional(),
-  createdTime: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  createdBy: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  updatedTime: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
-  actions: z.lazy(() => AutomationActionUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional(),
-  AutomationExecutionLog: z.lazy(() => AutomationExecutionLogUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
+  actions: z.lazy(() => AutomationActionUncheckedUpdateManyWithoutAutomationNestedInputSchema).optional()
 }).strict();
 
 export const TableCreateWithoutBaseInputSchema: z.ZodType<Prisma.TableCreateWithoutBaseInput> = z.object({
@@ -3156,16 +2748,18 @@ export const BaseCreateOrConnectWithoutTablesInputSchema: z.ZodType<Prisma.BaseC
 
 export const FieldCreateWithoutTableInputSchema: z.ZodType<Prisma.FieldCreateWithoutTableInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int()
 }).strict();
 
 export const FieldUncheckedCreateWithoutTableInputSchema: z.ZodType<Prisma.FieldUncheckedCreateWithoutTableInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int()
 }).strict();
 
 export const FieldCreateOrConnectWithoutTableInputSchema: z.ZodType<Prisma.FieldCreateOrConnectWithoutTableInput> = z.object({
@@ -3221,10 +2815,11 @@ export const FieldScalarWhereInputSchema: z.ZodType<Prisma.FieldScalarWhereInput
   OR: z.lazy(() => FieldScalarWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => FieldScalarWhereInputSchema),z.lazy(() => FieldScalarWhereInputSchema).array() ]).optional(),
   id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  fieldId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   name: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   tabelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
   fieldType: z.union([ z.lazy(() => EnumFieldTypeFilterSchema),z.lazy(() => FieldTypeSchema) ]).optional(),
-  data: z.lazy(() => JsonFilterSchema).optional()
+  value: z.union([ z.lazy(() => IntFilterSchema),z.number() ]).optional(),
 }).strict();
 
 export const TableCreateWithoutFieldsInputSchema: z.ZodType<Prisma.TableCreateWithoutFieldsInput> = z.object({
@@ -3286,14 +2881,6 @@ export const AutomationExecutionLogCreateManyAutomationInputSchema: z.ZodType<Pr
   executedAt: z.coerce.date().optional()
 }).strict();
 
-export const AutomationTestRunCreateManyAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunCreateManyAutomationInput> = z.object({
-  id: z.string().cuid().optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.string(),
-  executedAt: z.coerce.date().optional()
-}).strict();
-
 export const AutomationActionUpdateWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationActionUpdateWithoutAutomationInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   order: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
@@ -3351,30 +2938,6 @@ export const AutomationExecutionLogUncheckedUpdateManyWithoutAutomationInputSche
   executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
-export const AutomationTestRunUpdateWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUpdateWithoutAutomationInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationTestRunUncheckedUpdateWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedUpdateWithoutAutomationInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
-export const AutomationTestRunUncheckedUpdateManyWithoutAutomationInputSchema: z.ZodType<Prisma.AutomationTestRunUncheckedUpdateManyWithoutAutomationInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  testData: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  result: z.union([ z.lazy(() => NullableJsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
-  status: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  executedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-}).strict();
-
 export const TableCreateManyBaseInputSchema: z.ZodType<Prisma.TableCreateManyBaseInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string()
@@ -3421,30 +2984,34 @@ export const BaseUncheckedUpdateManyWithoutSpaceInputSchema: z.ZodType<Prisma.Ba
 
 export const FieldCreateManyTableInputSchema: z.ZodType<Prisma.FieldCreateManyTableInput> = z.object({
   id: z.string().cuid().optional(),
+  fieldId: z.string(),
   name: z.string(),
   fieldType: z.lazy(() => FieldTypeSchema),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]),
+  value: z.number().int()
 }).strict();
 
 export const FieldUpdateWithoutTableInputSchema: z.ZodType<Prisma.FieldUpdateWithoutTableInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const FieldUncheckedUpdateWithoutTableInputSchema: z.ZodType<Prisma.FieldUncheckedUpdateWithoutTableInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const FieldUncheckedUpdateManyWithoutTableInputSchema: z.ZodType<Prisma.FieldUncheckedUpdateManyWithoutTableInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  fieldId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   fieldType: z.union([ z.lazy(() => FieldTypeSchema),z.lazy(() => EnumFieldTypeFieldUpdateOperationsInputSchema) ]).optional(),
-  data: z.union([ z.lazy(() => JsonNullValueInputSchema),InputJsonValueSchema ]).optional(),
+  value: z.union([ z.number().int(),z.lazy(() => IntFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 /////////////////////////////////////////
@@ -3635,68 +3202,6 @@ export const AutomationExecutionLogFindUniqueOrThrowArgsSchema: z.ZodType<Prisma
   select: AutomationExecutionLogSelectSchema.optional(),
   include: AutomationExecutionLogIncludeSchema.optional(),
   where: AutomationExecutionLogWhereUniqueInputSchema,
-}).strict() ;
-
-export const AutomationTestRunFindFirstArgsSchema: z.ZodType<Prisma.AutomationTestRunFindFirstArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereInputSchema.optional(),
-  orderBy: z.union([ AutomationTestRunOrderByWithRelationInputSchema.array(),AutomationTestRunOrderByWithRelationInputSchema ]).optional(),
-  cursor: AutomationTestRunWhereUniqueInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-  distinct: z.union([ AutomationTestRunScalarFieldEnumSchema,AutomationTestRunScalarFieldEnumSchema.array() ]).optional(),
-}).strict() ;
-
-export const AutomationTestRunFindFirstOrThrowArgsSchema: z.ZodType<Prisma.AutomationTestRunFindFirstOrThrowArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereInputSchema.optional(),
-  orderBy: z.union([ AutomationTestRunOrderByWithRelationInputSchema.array(),AutomationTestRunOrderByWithRelationInputSchema ]).optional(),
-  cursor: AutomationTestRunWhereUniqueInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-  distinct: z.union([ AutomationTestRunScalarFieldEnumSchema,AutomationTestRunScalarFieldEnumSchema.array() ]).optional(),
-}).strict() ;
-
-export const AutomationTestRunFindManyArgsSchema: z.ZodType<Prisma.AutomationTestRunFindManyArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereInputSchema.optional(),
-  orderBy: z.union([ AutomationTestRunOrderByWithRelationInputSchema.array(),AutomationTestRunOrderByWithRelationInputSchema ]).optional(),
-  cursor: AutomationTestRunWhereUniqueInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-  distinct: z.union([ AutomationTestRunScalarFieldEnumSchema,AutomationTestRunScalarFieldEnumSchema.array() ]).optional(),
-}).strict() ;
-
-export const AutomationTestRunAggregateArgsSchema: z.ZodType<Prisma.AutomationTestRunAggregateArgs> = z.object({
-  where: AutomationTestRunWhereInputSchema.optional(),
-  orderBy: z.union([ AutomationTestRunOrderByWithRelationInputSchema.array(),AutomationTestRunOrderByWithRelationInputSchema ]).optional(),
-  cursor: AutomationTestRunWhereUniqueInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-}).strict() ;
-
-export const AutomationTestRunGroupByArgsSchema: z.ZodType<Prisma.AutomationTestRunGroupByArgs> = z.object({
-  where: AutomationTestRunWhereInputSchema.optional(),
-  orderBy: z.union([ AutomationTestRunOrderByWithAggregationInputSchema.array(),AutomationTestRunOrderByWithAggregationInputSchema ]).optional(),
-  by: AutomationTestRunScalarFieldEnumSchema.array(),
-  having: AutomationTestRunScalarWhereWithAggregatesInputSchema.optional(),
-  take: z.number().optional(),
-  skip: z.number().optional(),
-}).strict() ;
-
-export const AutomationTestRunFindUniqueArgsSchema: z.ZodType<Prisma.AutomationTestRunFindUniqueArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereUniqueInputSchema,
-}).strict() ;
-
-export const AutomationTestRunFindUniqueOrThrowArgsSchema: z.ZodType<Prisma.AutomationTestRunFindUniqueOrThrowArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereUniqueInputSchema,
 }).strict() ;
 
 export const BaseFindFirstArgsSchema: z.ZodType<Prisma.BaseFindFirstArgs> = z.object({
@@ -4100,58 +3605,6 @@ export const AutomationExecutionLogUpdateManyAndReturnArgsSchema: z.ZodType<Pris
 
 export const AutomationExecutionLogDeleteManyArgsSchema: z.ZodType<Prisma.AutomationExecutionLogDeleteManyArgs> = z.object({
   where: AutomationExecutionLogWhereInputSchema.optional(),
-  limit: z.number().optional(),
-}).strict() ;
-
-export const AutomationTestRunCreateArgsSchema: z.ZodType<Prisma.AutomationTestRunCreateArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  data: z.union([ AutomationTestRunCreateInputSchema,AutomationTestRunUncheckedCreateInputSchema ]),
-}).strict() ;
-
-export const AutomationTestRunUpsertArgsSchema: z.ZodType<Prisma.AutomationTestRunUpsertArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereUniqueInputSchema,
-  create: z.union([ AutomationTestRunCreateInputSchema,AutomationTestRunUncheckedCreateInputSchema ]),
-  update: z.union([ AutomationTestRunUpdateInputSchema,AutomationTestRunUncheckedUpdateInputSchema ]),
-}).strict() ;
-
-export const AutomationTestRunCreateManyArgsSchema: z.ZodType<Prisma.AutomationTestRunCreateManyArgs> = z.object({
-  data: z.union([ AutomationTestRunCreateManyInputSchema,AutomationTestRunCreateManyInputSchema.array() ]),
-}).strict() ;
-
-export const AutomationTestRunCreateManyAndReturnArgsSchema: z.ZodType<Prisma.AutomationTestRunCreateManyAndReturnArgs> = z.object({
-  data: z.union([ AutomationTestRunCreateManyInputSchema,AutomationTestRunCreateManyInputSchema.array() ]),
-}).strict() ;
-
-export const AutomationTestRunDeleteArgsSchema: z.ZodType<Prisma.AutomationTestRunDeleteArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  where: AutomationTestRunWhereUniqueInputSchema,
-}).strict() ;
-
-export const AutomationTestRunUpdateArgsSchema: z.ZodType<Prisma.AutomationTestRunUpdateArgs> = z.object({
-  select: AutomationTestRunSelectSchema.optional(),
-  include: AutomationTestRunIncludeSchema.optional(),
-  data: z.union([ AutomationTestRunUpdateInputSchema,AutomationTestRunUncheckedUpdateInputSchema ]),
-  where: AutomationTestRunWhereUniqueInputSchema,
-}).strict() ;
-
-export const AutomationTestRunUpdateManyArgsSchema: z.ZodType<Prisma.AutomationTestRunUpdateManyArgs> = z.object({
-  data: z.union([ AutomationTestRunUpdateManyMutationInputSchema,AutomationTestRunUncheckedUpdateManyInputSchema ]),
-  where: AutomationTestRunWhereInputSchema.optional(),
-  limit: z.number().optional(),
-}).strict() ;
-
-export const AutomationTestRunUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.AutomationTestRunUpdateManyAndReturnArgs> = z.object({
-  data: z.union([ AutomationTestRunUpdateManyMutationInputSchema,AutomationTestRunUncheckedUpdateManyInputSchema ]),
-  where: AutomationTestRunWhereInputSchema.optional(),
-  limit: z.number().optional(),
-}).strict() ;
-
-export const AutomationTestRunDeleteManyArgsSchema: z.ZodType<Prisma.AutomationTestRunDeleteManyArgs> = z.object({
-  where: AutomationTestRunWhereInputSchema.optional(),
   limit: z.number().optional(),
 }).strict() ;
 

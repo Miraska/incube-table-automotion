@@ -54,9 +54,8 @@ model Automation {
   // Связь с цепочкой действий: каждое действие выполняется последовательно
   actions                 AutomationAction[]
   AutomationExecutionLog  AutomationExecutionLog[]
-  AutomationTestRun       AutomationTestRun[]
 
-  @@map("automation")
+  @@map("automations")
 }
 
 // Модель отдельного шага (действия) в цепочке автоматизации.
@@ -77,7 +76,7 @@ model AutomationAction {
 
   automation     Automation @relation(fields: [automationId], references: [id])
 
-  @@map("automation_action")
+  @@map("automation_actions")
 }
 
 // Модель для логирования выполнения автоматизаций
@@ -96,22 +95,7 @@ model AutomationExecutionLog {
 
   automation  Automation @relation(fields: [automationId], references: [id])
 
-  @@map("automation_execution_log")
-}
-
-// Модель для тестовых запусков автоматизаций (позволяет проводить тесты перед публикацией)
-// Здесь можно сохранить тестовые входные данные, результат выполнения и статус.
-model AutomationTestRun {
-  id             String @id @default(cuid())
-  automationId   String @map("automation_id")
-  testData       Json @map("test_data")
-  result         Json?
-  status         String
-  executedAt     DateTime @default(now()) @map("executed_at")
-
-  automation   Automation  @relation(fields: [automationId], references: [id])
-
-  @@map("automation_test_run")
+  @@map("automation_execution_logs")
 }
 
 model Base {
@@ -121,6 +105,8 @@ model Base {
 
   tables        Table[]
   space         Space @relation(fields: [spaceId], references: [id])
+
+  @@map("bases")
 }
 
 model Space {
@@ -128,7 +114,8 @@ model Space {
   name          String
 
   baseGroup     Base[]
-  @@map("space")
+
+  @@map("spaces")
 }
 
 model Table {
@@ -139,14 +126,19 @@ model Table {
   // Связь с базой
   base          Base @relation(fields: [baseId], references: [id])
   fields        Field[]
+
+  @@map("tables")
 }
 
 model Field {
   id            String @id @default(cuid())
+  fieldId       String @map("field_id")
   name          String
   tabelId       String @map("tabel_id")
   fieldType     FieldType @map("field_type")
-  data          Json
+  value         Int
 
   table         Table @relation(fields: [tabelId], references: [id])
+
+  @@map("fields")
 }

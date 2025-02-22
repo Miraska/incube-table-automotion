@@ -177,3 +177,8 @@ dist
 # SQLite
 db
 *.db
+
+# Удалить позже
+automation
+auto.ts
+hooks

@@ -20,6 +20,6 @@ const LOG: ILog = {
     info: (msg: string): void => {
         console.info(chalk.cyan("INF:"), msg);
     },
-}
+};
 
 export default LOG;

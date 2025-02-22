@@ -1,13 +1,13 @@
-import help from "./help"
-import LOG from "./log"
+import help from "./help";
+import LOG from "./log";
 
 function cmdParser(command: string): void {
     switch (command) {
         case "exit":
-            return LOG.success("Выход...")
+            return LOG.success("Выход...");
         case "help":
-            LOG.success("Вывод списока команд...\n")
-            return help()
+            LOG.success("Вывод списока команд...\n");
+            return help();
         case "create":
             return LOG.success("Вы пытались создать\n");
         case "update":
@@ -15,8 +15,8 @@ function cmdParser(command: string): void {
         case "delete":
             return LOG.success("Вы пытались удалить\n");
         default:
-            return LOG.error("Неизвестная команда")
+            return LOG.error("Неизвестная команда");
     }
 }
 
-export default cmdParser
+export default cmdParser;
