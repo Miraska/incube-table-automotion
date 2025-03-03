@@ -2,143 +2,126 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator zod {
-  provider = "zod-prisma-types"
-  output   = "./zod"
-}
-
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"           // Или другая СУБД
+  url      = env("DATABASE_URL") 
 }
 
-// Дополнительные перечисления для автоматизаций
-enum AutomationTriggerType {
-  onCreate
-  onUpdate
-  onDelete
-  scheduled
-}
-
-enum AutomationActionType {
-  updateRecord
-  callAPI
-  sendNotification
-  runScript
-}
-
-enum StatusType {
-  success
-  error
-}
-
-enum FieldType {
-  number
-  string
-}
-
-// Основная модель автоматизации
 model Automation {
-  id             String @id @default(cuid())
-  name           String
-  triggerType    AutomationTriggerType @map("trigger_type")
-  // triggerConfig – настройки триггера, например, условия изменения конкретных полей
-  triggerConfig  Json? @map("trigger_config")
-  // conditions – дополнительные условия для запуска автоматизации
-  conditions     Json?
-  enabled        Boolean @default(true)
-  createdTime    DateTime @default(now()) @map("created_time")
-  createdBy      String? @map("created_by")
-  updatedTime    DateTime? @updatedAt @map("last_modified_time")
+  id                String   @id @default(cuid())
+  name              String
+  triggerType       String   @map("trigger_type")
+  triggerConfig     Json?    @map("trigger_config")
+  conditions        Json?
+  enabled           Boolean  @default(true)
+  createdTime       DateTime @default(now()) @map("created_time")
+  createdBy         String?  @map("created_by")
+  updatedTime       DateTime? @updatedAt @map("last_modified_time")
+  tableIdOrName     String?
+  watchFields       Json?
 
-  // Связь с цепочкой действий: каждое действие выполняется последовательно
-  actions                 AutomationAction[]
-  AutomationExecutionLog  AutomationExecutionLog[]
+  // Связь с actions
+  actions           AutomationAction[]       
+  // Связь с логами автоматизации
+  logs              AutomationExecutionLog[]
 
   @@map("automations")
 }
 
-// Модель отдельного шага (действия) в цепочке автоматизации.
-// Позволяет задать порядок выполнения, тип действия, его параметры и условия для запуска шага.
 model AutomationAction {
-  id             String @id @default(cuid())
-  automationId   String @map("automation_id")
-  // Порядок выполнения в цепочке (например, 1, 2, 3…)
+  id             String   @id @default(cuid())
+  automationId   String   @map("automation_id")
   order          Int
-  type           AutomationActionType
-  // Параметры действия в формате JSON (например, для runScript: { script: "return eventData.value*2;" })
-  // Нужно подумать как сделать, т.к. нам нужно здесь хранить js-скрипт
+  type           String
   params         Json?
-  // Дополнительные условия для выполнения именно этого шага (например, если результат предыдущего шага удовлетворяет условию)
   conditions     Json?
   createdTime    DateTime @default(now()) @map("created_time")
   updatedTime    DateTime? @updatedAt @map("last_modified_time")
 
-  automation     Automation @relation(fields: [automationId], references: [id])
+  // Каскадное удаление
+  automation     Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  // Логи выполнения экшена
+  actionLogs     AutomationActionExecutionLog[]
 
   @@map("automation_actions")
 }
 
-// Модель для логирования выполнения автоматизаций
 model AutomationExecutionLog {
-  id            String @id @default(cuid())
-  automationId  String @map("automation_id")
-  // Статус выполнения, например: "success", "error", "partial",
-  status        StatusType?  
-  // Данные события, вызвавшие автоматизацию
-  eventData     Json? @map("event_data")
-  // Результат выполнения (например, данные, возвращённые скриптом или последним действием в цепочке)
+  id            String   @id @default(cuid())
+  automationId  String   @map("automation_id")
+  status        String?
+  eventData     Json?    @map("event_data")
   result        Json?
-  // Текст ошибки в случае неудачи (если есть)
   error         String?
   executedAt    DateTime @default(now()) @map("executed_at")
 
-  automation  Automation @relation(fields: [automationId], references: [id])
+  // Каскадное удаление
+  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  // Массив шагов (логов экшенов)
+  steps         AutomationActionExecutionLog[]
 
   @@map("automation_execution_logs")
 }
 
-model Base {
-  id            String @id @default(cuid())
-  name          String
-  spaceId       String @map("space_id")
+model AutomationActionExecutionLog {
+  id          String   @id @default(cuid())
+  executionId String   @map("execution_id")
+  actionId    String   @map("action_id")
+  status      String?
+  result      Json?
+  error       String?
+  executedAt  DateTime @default(now()) @map("executed_at")
 
-  tables        Table[]
-  space         Space @relation(fields: [spaceId], references: [id])
+  // Каскадное удаление
+  execution   AutomationExecutionLog @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  action      AutomationAction       @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@map("automation_action_execution_logs")
+}
+
+// Дополнительные модели для примера:
+model Base {
+  id      String @id @default(cuid())
+  name    String
+  spaceId String @map("space_id")
+
+  tables  Table[]
+  space   Space @relation(fields: [spaceId], references: [id])
 
   @@map("bases")
 }
 
 model Space {
-  id            String @id @default(cuid())
-  name          String
+  id        String @id @default(cuid())
+  name      String
 
-  baseGroup     Base[]
+  baseGroup Base[]
 
   @@map("spaces")
 }
 
 model Table {
-  id            String @id @default(cuid())
-  baseId        String @map("base_id")
-  name          String
+  id       String @id @default(cuid())
+  baseId   String @map("base_id")
+  name     String
 
-  // Связь с базой
-  base          Base @relation(fields: [baseId], references: [id])
-  fields        Field[]
+  base     Base   @relation(fields: [baseId], references: [id])
+  fields   Field[]
 
   @@map("tables")
 }
 
 model Field {
-  id            String @id @default(cuid())
-  fieldId       String @map("field_id")
-  name          String
-  tabelId       String @map("tabel_id")
-  fieldType     FieldType @map("field_type")
-  value         Int
+  id        String   @id @default(cuid())
+  fieldId   String   @map("field_id")
+  name      String
+  tabelId   String   @map("tabel_id")
+  fieldType String   @map("field_type") // string
+  value     Int
 
-  table         Table @relation(fields: [tabelId], references: [id])
+  table     Table @relation(fields: [tabelId], references: [id])
 
   @@map("fields")
 }
