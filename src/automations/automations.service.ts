@@ -1,13 +1,9 @@
-// src/automations/automations.service.ts
-
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AutomationsRunner } from './automations.runner';
-import { AutomationTriggerType } from './automation.types';
 import { AutomationsScheduler } from './automations.scheduler';
 import { AutomationsGateway } from './automations.gateway';
-
-import { TriggerConfig } from './automation.types';
+import { TriggerConfig, AutomationTriggerType } from './automation.types';
 
 @Injectable()
 export class AutomationsService {
@@ -17,36 +13,35 @@ export class AutomationsService {
     private readonly prisma: PrismaService,
     private readonly runner: AutomationsRunner,
     private readonly scheduler: AutomationsScheduler,
-    private readonly gateway: AutomationsGateway, // Внедряем WebSocket-шлюз
+    private readonly gateway: AutomationsGateway,
   ) {}
 
-  // CREATE
   async createAutomation(data: any) {
     const automation = await this.prisma.automation.create({ data });
 
-    // Если это scheduled-автоматизация и она включена => регистрируем cron
     if (automation.triggerType === 'scheduled' && automation.enabled) {
       const config = automation.triggerConfig as TriggerConfig;
       const cronExpr = config?.cron || '0 * * * *';
       this.scheduler.registerCronJob(automation.id, cronExpr);
     }
 
-    // Оповестим всех клиентов, что появилась новая автоматизация
     this.gateway.broadcastAutomationUpdate(automation);
-
     return automation;
   }
 
-  // UPDATE
+  // Еще нужно доработать и протестить
   async updateAutomation(id: string, data: any) {
     const old = await this.prisma.automation.findUnique({ where: { id } });
+
+    if(old && data.actions !== undefined || data.actions !== null)
+      await this.prisma.automationAction.deleteMany();
 
     const updated = await this.prisma.automation.update({
       where: { id },
       data,
     });
 
-    // Логика пересоздания или удаления cron-задачи при смене triggerType/cron
+    // Логика крон-задачи
     if (old.triggerType === 'scheduled' && updated.triggerType !== 'scheduled') {
       this.scheduler.removeCronJob(id);
     }
@@ -60,29 +55,36 @@ export class AutomationsService {
       }
     }
 
-    // Оповещаем всех клиентов, что автоматизация изменилась
     this.gateway.broadcastAutomationUpdate(updated);
-
     return updated;
   }
 
-  // DELETE
   async deleteAutomation(id: string) {
-    // Сначала уберём крон-задачу (если есть)
     this.scheduler.removeCronJob(id);
 
-    // Удаляем саму Automation
     const deleted = await this.prisma.automation.delete({
       where: { id },
     });
 
-    // Сообщаем, что автоматизация удалена (чтобы клиент убрал её из списка)
     this.gateway.broadcastAutomationRemoved(id);
-
     return deleted;
   }
 
-  // TOGGLE (включить/выключить)
+  // src/automations/automations.service.ts
+  async getAutomationActions(automationId: string) {
+    return this.prisma.automationAction.findMany({
+      where: { automationId },
+      orderBy: { order: 'asc' },
+      select: {
+        id: true,
+        type: true,
+        params: true, 
+        order: true,
+      },
+    });
+  }
+
+  
   async toggleAutomationEnabled(id: string, enabled: boolean) {
     const updated = await this.prisma.automation.update({
       where: { id },
@@ -103,13 +105,10 @@ export class AutomationsService {
       }
     }
 
-    // Оповещаем о любом изменении, в том числе включение/выключение
     this.gateway.broadcastAutomationUpdate(updated);
-
     return updated;
   }
 
-  // READ
   async listAutomations() {
     return this.prisma.automation.findMany();
   }
@@ -118,16 +117,19 @@ export class AutomationsService {
     return this.prisma.automation.findUnique({ where: { id } });
   }
 
-  // Ручной запуск
   async runAutomation(automationId: string, eventData: any) {
     return this.runner.runAutomation(automationId, eventData);
   }
 
-  // Обработка событий в таблицах
+  /**
+   * Пример вызова при событиях (динамических). 
+   * Если у вас есть хуки при создании новой записи в Record (или т.п.),
+   * можно дергать этот метод.
+   */
   async handleTableEvent(
     tableName: string,
     eventType: AutomationTriggerType,
-    record: any,
+    recordData: any,
   ) {
     this.logger.log(`handleTableEvent -> table=${tableName}, event=${eventType}`);
 
@@ -140,7 +142,7 @@ export class AutomationsService {
     });
 
     for (const automation of automations) {
-      await this.runner.runAutomation(automation.id, { record });
+      await this.runner.runAutomation(automation.id, { record: recordData });
     }
   }
 }

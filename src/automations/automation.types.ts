@@ -1,8 +1,3 @@
-// src/automations/automation.types.ts
-
-/**
- * Возможные значения для triggerType
- */
 export type AutomationTriggerType =
   | 'onCreate'
   | 'onUpdate'
@@ -13,22 +8,14 @@ export type AutomationTriggerType =
   | 'onDeleteRecord'
   | 'onCheck';
 
-/**
- * Возможные значения для AutomationAction.type
- */
 export type AutomationActionType =
   | 'updateRecord'
   | 'callAPI'
   | 'sendNotification'
   | 'runScript'
   | 'sendEmail'
-  | 'sendSlack'
-  // можно расширять дальше
-  ;
+  | 'sendSlack';
 
-/**
- * Возможные значения для поля status
- */
 export type StatusType = 'success' | 'error';
 
 export interface TriggerConfig {

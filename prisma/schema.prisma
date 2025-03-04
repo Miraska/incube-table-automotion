@@ -3,10 +3,35 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"           // Или другая СУБД
-  url      = env("DATABASE_URL") 
+  provider = "sqlite" // Или другая СУБД
+  url      = env("DATABASE_URL")
 }
 
+/**
+ * Модели для конструктора таблиц (динамические "логические" таблицы).
+ */
+model TableDefinition {
+  id        String   @id @default(cuid())
+  name      String   // пользовательское имя таблицы, напр. "Сверка"
+  columns   Json?    // можно хранить массив описаний полей
+  createdAt DateTime @default(now())
+
+  // Связь "1 ко многим": одна TableDefinition -> несколько Records
+  records   Record[]
+}
+
+model Record {
+  id        String   @id @default(cuid())
+  tableId   String
+  data      Json     // здесь лежат все значения колонок
+  createdAt DateTime @default(now())
+
+  table     TableDefinition @relation(fields: [tableId], references: [id])
+}
+
+/**
+ * Модели для автоматизаций (Automation, Action, Logs).
+ */
 model Automation {
   id                String   @id @default(cuid())
   name              String
@@ -20,47 +45,39 @@ model Automation {
   tableIdOrName     String?
   watchFields       Json?
 
-  // Связь с actions
-  actions           AutomationAction[]       
-  // Связь с логами автоматизации
+  actions           AutomationAction[]
   logs              AutomationExecutionLog[]
 
   @@map("automations")
 }
 
 model AutomationAction {
-  id             String   @id @default(cuid())
-  automationId   String   @map("automation_id")
-  order          Int
-  type           String
-  params         Json?
-  conditions     Json?
-  createdTime    DateTime @default(now()) @map("created_time")
-  updatedTime    DateTime? @updatedAt @map("last_modified_time")
+  id          String   @id @default(cuid())
+  automationId String  @map("automation_id")
+  order       Int
+  type        String
+  params      Json?
+  conditions  Json?
+  createdTime DateTime @default(now()) @map("created_time")
+  updatedTime DateTime? @updatedAt @map("last_modified_time")
 
-  // Каскадное удаление
-  automation     Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-
-  // Логи выполнения экшена
-  actionLogs     AutomationActionExecutionLog[]
+  automation  Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  actionLogs  AutomationActionExecutionLog[]
 
   @@map("automation_actions")
 }
 
 model AutomationExecutionLog {
-  id            String   @id @default(cuid())
-  automationId  String   @map("automation_id")
-  status        String?
-  eventData     Json?    @map("event_data")
-  result        Json?
-  error         String?
-  executedAt    DateTime @default(now()) @map("executed_at")
+  id           String   @id @default(cuid())
+  automationId String   @map("automation_id")
+  status       String?
+  eventData    Json?    @map("event_data")
+  result       Json?
+  error        String?
+  executedAt   DateTime @default(now()) @map("executed_at")
 
-  // Каскадное удаление
-  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-
-  // Массив шагов (логов экшенов)
-  steps         AutomationActionExecutionLog[]
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  steps        AutomationActionExecutionLog[]
 
   @@map("automation_execution_logs")
 }
@@ -74,54 +91,8 @@ model AutomationActionExecutionLog {
   error       String?
   executedAt  DateTime @default(now()) @map("executed_at")
 
-  // Каскадное удаление
   execution   AutomationExecutionLog @relation(fields: [executionId], references: [id], onDelete: Cascade)
   action      AutomationAction       @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
   @@map("automation_action_execution_logs")
-}
-
-// Дополнительные модели для примера:
-model Base {
-  id      String @id @default(cuid())
-  name    String
-  spaceId String @map("space_id")
-
-  tables  Table[]
-  space   Space @relation(fields: [spaceId], references: [id])
-
-  @@map("bases")
-}
-
-model Space {
-  id        String @id @default(cuid())
-  name      String
-
-  baseGroup Base[]
-
-  @@map("spaces")
-}
-
-model Table {
-  id       String @id @default(cuid())
-  baseId   String @map("base_id")
-  name     String
-
-  base     Base   @relation(fields: [baseId], references: [id])
-  fields   Field[]
-
-  @@map("tables")
-}
-
-model Field {
-  id        String   @id @default(cuid())
-  fieldId   String   @map("field_id")
-  name      String
-  tabelId   String   @map("tabel_id")
-  fieldType String   @map("field_type") // string
-  value     Int
-
-  table     Table @relation(fields: [tabelId], references: [id])
-
-  @@map("fields")
 }
