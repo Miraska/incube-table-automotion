@@ -1,29 +1,30 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Или другая СУБД
+  provider = "sqlite" // или другой провайдер (postgres, mysql)
   url      = env("DATABASE_URL")
 }
 
 /**
- * Модели для конструктора таблиц (динамические "логические" таблицы).
+ * Модели для динамических таблиц (аналог Airtable таблиц).
  */
 model TableDefinition {
   id        String   @id @default(cuid())
-  name      String   // пользовательское имя таблицы, напр. "Сверка"
-  columns   Json?    // можно хранить массив описаний полей
+  name      String
+  columns   Json?
   createdAt DateTime @default(now())
 
-  // Связь "1 ко многим": одна TableDefinition -> несколько Records
   records   Record[]
 }
 
 model Record {
   id        String   @id @default(cuid())
   tableId   String
-  data      Json     // здесь лежат все значения колонок
+  data      Json
   createdAt DateTime @default(now())
 
   table     TableDefinition @relation(fields: [tableId], references: [id])
@@ -45,6 +46,10 @@ model Automation {
   tableIdOrName     String?
   watchFields       Json?
 
+  // Новые поля для удобства
+  triggerLabel       String?
+  triggerDescription String?
+
   actions           AutomationAction[]
   logs              AutomationExecutionLog[]
 
@@ -52,14 +57,19 @@ model Automation {
 }
 
 model AutomationAction {
-  id          String   @id @default(cuid())
-  automationId String  @map("automation_id")
-  order       Int
-  type        String
-  params      Json?
-  conditions  Json?
-  createdTime DateTime @default(now()) @map("created_time")
-  updatedTime DateTime? @updatedAt @map("last_modified_time")
+  id           String   @id @default(cuid())
+  automationId String   @map("automation_id")
+  order        Int
+  type         String
+  params       Json?
+  conditions   Json?
+  createdTime  DateTime @default(now()) @map("created_time")
+  updatedTime  DateTime? @updatedAt @map("last_modified_time")
+
+  // Новые поля
+  label       String?
+  description String?
+  inputVars   Json?
 
   automation  Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
   actionLogs  AutomationActionExecutionLog[]
@@ -75,6 +85,7 @@ model AutomationExecutionLog {
   result       Json?
   error        String?
   executedAt   DateTime @default(now()) @map("executed_at")
+  isTest       Boolean  @default(false)
 
   automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
   steps        AutomationActionExecutionLog[]
@@ -90,6 +101,7 @@ model AutomationActionExecutionLog {
   result      Json?
   error       String?
   executedAt  DateTime @default(now()) @map("executed_at")
+  consoleLogs Json?
 
   execution   AutomationExecutionLog @relation(fields: [executionId], references: [id], onDelete: Cascade)
   action      AutomationAction       @relation(fields: [actionId], references: [id], onDelete: Cascade)

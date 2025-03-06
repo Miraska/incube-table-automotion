@@ -1,3 +1,4 @@
+// src/automations/automations.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,

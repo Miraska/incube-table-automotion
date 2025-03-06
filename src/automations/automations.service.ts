@@ -1,9 +1,10 @@
+// src/automations/automations.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AutomationsRunner } from './automations.runner';
 import { AutomationsScheduler } from './automations.scheduler';
 import { AutomationsGateway } from './automations.gateway';
-import { TriggerConfig, AutomationTriggerType } from './automation.types';
+import { TriggerConfig } from './automation.types';
 
 @Injectable()
 export class AutomationsService {
@@ -16,9 +17,18 @@ export class AutomationsService {
     private readonly gateway: AutomationsGateway,
   ) {}
 
+  // ========== AUTOMATIONS CRUD ==========
+
+  async listAutomations() {
+    return this.prisma.automation.findMany({
+      orderBy: { createdTime: 'desc' },
+    });
+  }
+
   async createAutomation(data: any) {
     const automation = await this.prisma.automation.create({ data });
 
+    // Если автоматизация типа scheduled и включена => регистрируем cron
     if (automation.triggerType === 'scheduled' && automation.enabled) {
       const config = automation.triggerConfig as TriggerConfig;
       const cronExpr = config?.cron || '0 * * * *';
@@ -29,19 +39,20 @@ export class AutomationsService {
     return automation;
   }
 
-  // Еще нужно доработать и протестить
+  async getAutomation(id: string) {
+    return this.prisma.automation.findUnique({ where: { id } });
+  }
+
   async updateAutomation(id: string, data: any) {
     const old = await this.prisma.automation.findUnique({ where: { id } });
-
-    if(old && data.actions !== undefined || data.actions !== null)
-      await this.prisma.automationAction.deleteMany();
+    if (!old) throw new Error(`Automation not found: ${id}`);
 
     const updated = await this.prisma.automation.update({
       where: { id },
       data,
     });
 
-    // Логика крон-задачи
+    // Логика для cron
     if (old.triggerType === 'scheduled' && updated.triggerType !== 'scheduled') {
       this.scheduler.removeCronJob(id);
     }
@@ -70,21 +81,6 @@ export class AutomationsService {
     return deleted;
   }
 
-  // src/automations/automations.service.ts
-  async getAutomationActions(automationId: string) {
-    return this.prisma.automationAction.findMany({
-      where: { automationId },
-      orderBy: { order: 'asc' },
-      select: {
-        id: true,
-        type: true,
-        params: true, 
-        order: true,
-      },
-    });
-  }
-
-  
   async toggleAutomationEnabled(id: string, enabled: boolean) {
     const updated = await this.prisma.automation.update({
       where: { id },
@@ -109,40 +105,112 @@ export class AutomationsService {
     return updated;
   }
 
-  async listAutomations() {
-    return this.prisma.automation.findMany();
+  // ========== RUN + TEST-RUN ==========
+
+  async runAutomation(automationId: string, body: any, isTest = false) {
+    const { eventData } = body; // Из RunAutomationDto
+    return this.runner.runAutomation(automationId, eventData, isTest);
   }
 
-  async getAutomation(id: string) {
-    return this.prisma.automation.findUnique({ where: { id } });
+  // ========== ACTIONS CRUD ==========
+
+  async getAutomationActions(automationId: string) {
+    return this.prisma.automationAction.findMany({
+      where: { automationId },
+      orderBy: { order: 'asc' },
+    });
   }
 
-  async runAutomation(automationId: string, eventData: any) {
-    return this.runner.runAutomation(automationId, eventData);
-  }
+  async createAction(automationId: string, data: any) {
+    // Проверка, что автоматизация существует
+    const automation = await this.getAutomation(automationId);
+    if (!automation) throw new Error('Automation not found');
 
-  /**
-   * Пример вызова при событиях (динамических). 
-   * Если у вас есть хуки при создании новой записи в Record (или т.п.),
-   * можно дергать этот метод.
-   */
-  async handleTableEvent(
-    tableName: string,
-    eventType: AutomationTriggerType,
-    recordData: any,
-  ) {
-    this.logger.log(`handleTableEvent -> table=${tableName}, event=${eventType}`);
-
-    const automations = await this.prisma.automation.findMany({
-      where: {
-        triggerType: eventType,
-        enabled: true,
-        OR: [{ tableIdOrName: null }, { tableIdOrName: tableName }],
+    return this.prisma.automationAction.create({
+      data: {
+        automationId,
+        order: data.order,
+        type: data.type,
+        label: data.label,
+        description: data.description,
+        params: data.params,
+        conditions: data.conditions,
+        inputVars: data.inputVars,
       },
     });
+  }
 
-    for (const automation of automations) {
-      await this.runner.runAutomation(automation.id, { record: recordData });
+  async getAction(automationId: string, actionId: string) {
+    return this.prisma.automationAction.findFirst({
+      where: { id: actionId, automationId },
+    });
+  }
+
+  async updateAction(automationId: string, actionId: string, data: any) {
+    const oldAction = await this.getAction(automationId, actionId);
+    if (!oldAction) throw new Error('Action not found');
+
+    return this.prisma.automationAction.update({
+      where: { id: actionId },
+      data: {
+        order: data.order ?? oldAction.order,
+        type: data.type ?? oldAction.type,
+        label: data.label ?? oldAction.label,
+        description: data.description ?? oldAction.description,
+        params: data.params ?? oldAction.params,
+        conditions: data.conditions ?? oldAction.conditions,
+        inputVars: data.inputVars ?? oldAction.inputVars,
+      },
+    });
+  }
+
+  async deleteAction(automationId: string, actionId: string) {
+    const oldAction = await this.getAction(automationId, actionId);
+    if (!oldAction) throw new Error('Action not found');
+
+    return this.prisma.automationAction.delete({
+      where: { id: actionId },
+    });
+  }
+
+  async reorderActions(automationId: string, actions: Array<{ actionId: string; order: number }>) {
+    const updates = [];
+    for (const { actionId, order } of actions) {
+      updates.push(
+        this.prisma.automationAction.update({
+          where: { id: actionId },
+          data: { order },
+        }),
+      );
     }
+    await this.prisma.$transaction(updates);
+
+    return this.getAutomationActions(automationId);
+  }
+
+  // ========== LOGS ==========
+
+  async listExecutionLogs(automationId: string) {
+    return this.prisma.automationExecutionLog.findMany({
+      where: { automationId },
+      orderBy: { executedAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        error: true,
+        eventData: true,
+        isTest: true,
+        executedAt: true,
+      },
+    });
+  }
+
+  async getExecutionLog(automationId: string, executionId: string) {
+    return this.prisma.automationExecutionLog.findFirst({
+      where: { id: executionId, automationId },
+      include: {
+        steps: true,
+      },
+    });
   }
 }

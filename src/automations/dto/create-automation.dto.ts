@@ -1,3 +1,4 @@
+// src/automations/dto/create-automation.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAutomationDto {
@@ -7,42 +8,21 @@ export class CreateAutomationDto {
   @ApiProperty({ description: 'Тип триггера', example: 'scheduled' })
   triggerType: string;
 
-  @ApiPropertyOptional({
-    description: 'ID или имя таблицы (если нужно)',
-    example: 'Fields table',
-  })
+  @ApiPropertyOptional({ description: 'ID или имя таблицы (если нужно)' })
   tableIdOrName?: string | null;
 
-  @ApiPropertyOptional({
-    description: 'Условие (conditions) для выполнения. Может быть null.',
-  })
-  conditions?: any; // Можно уточнить тип, если он известен
+  @ApiPropertyOptional({ description: 'Условие (JSON-структура)' })
+  conditions?: any;
 
-  @ApiPropertyOptional({
-    description: 'Включена ли автоматизация',
-    default: true,
-  })
+  @ApiPropertyOptional({ description: 'Включена ли автоматизация', default: true })
   enabled?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Настройки для планировщика (cron)',
-    example: {
-      cron: '* * * * *',
-    },
-  })
-  triggerConfig?: {
-    cron?: string;
-  };
+  @ApiPropertyOptional({ description: 'Настройки для расписания (cron)', example: { cron: '* * * * *' } })
+  triggerConfig?: { cron?: string };
 
-  @ApiPropertyOptional({
-    description:
-      'Набор действий автоматизации (например: create, update, script, notification и т.д.)',
-  })
-  actions?: {
-    create?: Array<{
-      order: number;
-      type: string;
-      params: Record<string, any>;
-    }>;
-  };
+  @ApiPropertyOptional({ description: 'Метка (label) триггера' })
+  triggerLabel?: string;
+
+  @ApiPropertyOptional({ description: 'Описание триггера' })
+  triggerDescription?: string;
 }

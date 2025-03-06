@@ -1,3 +1,4 @@
+// src/automations/dto/run-automation.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RunAutomationDto {
@@ -10,5 +11,5 @@ export class RunAutomationDto {
       },
     },
   })
-  record: Record<string, any>;
+  eventData: Record<string, any>;
 }

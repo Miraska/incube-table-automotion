@@ -1,20 +1,28 @@
+// src/automations/dto/update-automation.dto.ts
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateAutomationDto {
-  @ApiPropertyOptional({ description: 'Новое имя автоматизации' })
+  @ApiPropertyOptional()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Флаг включения или отключения' })
+  @ApiPropertyOptional()
+  triggerType?: string;
+
+  @ApiPropertyOptional()
+  tableIdOrName?: string | null;
+
+  @ApiPropertyOptional()
+  conditions?: any;
+
+  @ApiPropertyOptional()
   enabled?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Изменённый набор действий (actions)',
-  })
-  actions?: {
-    create?: Array<{
-      order: number;
-      type: string;
-      params: Record<string, any>;
-    }>;
-  };
+  @ApiPropertyOptional()
+  triggerConfig?: any;
+
+  @ApiPropertyOptional()
+  triggerLabel?: string;
+
+  @ApiPropertyOptional()
+  triggerDescription?: string;
 }

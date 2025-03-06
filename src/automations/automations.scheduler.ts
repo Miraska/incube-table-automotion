@@ -1,3 +1,4 @@
+// src/automations/automations.scheduler.ts
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodeCron from 'node-cron';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -32,12 +33,13 @@ export class AutomationsScheduler implements OnModuleInit {
   }
 
   registerCronJob(automationId: string, cronExpr: string) {
+    // Останавливаем и убираем старую задачу, если была
     if (this.cronJobs[automationId]) {
       this.cronJobs[automationId].stop();
       delete this.cronJobs[automationId];
     }
 
-    this.logger.log(`Registering cron for auto=${automationId} => ${cronExpr}`);
+    this.logger.log(`Registering cron for automation=${automationId} => ${cronExpr}`);
     const job = nodeCron.schedule(cronExpr, async () => {
       this.logger.log(`Running scheduled automation: ${automationId}`);
       await this.runner.runAutomation(automationId, { reason: 'cron' });

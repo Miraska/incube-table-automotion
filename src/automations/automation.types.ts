@@ -1,12 +1,13 @@
+// src/automations/automation.types.ts
 export type AutomationTriggerType =
   | 'onCreate'
   | 'onUpdate'
   | 'onDelete'
   | 'scheduled'
-  | 'onCreateRecord'
-  | 'onUpdateRecord'
-  | 'onDeleteRecord'
-  | 'onCheck';
+  | 'onCheck'
+  | 'recordMatchesConditions'
+  | 'formSubmitted'
+  | 'buttonPressed';
 
 export type AutomationActionType =
   | 'updateRecord'
@@ -14,11 +15,13 @@ export type AutomationActionType =
   | 'sendNotification'
   | 'runScript'
   | 'sendEmail'
-  | 'sendSlack';
+  | 'sendSlack'
+  | 'createRecord'
+  | 'deleteRecord';
 
 export type StatusType = 'success' | 'error';
 
 export interface TriggerConfig {
   cron?: string;
-  someOtherField?: string;
+  // Можете расширять под другие триггеры
 }
