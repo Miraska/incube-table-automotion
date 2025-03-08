@@ -11,6 +11,7 @@ import { Logger } from '@nestjs/common';
 @WebSocketGateway({
   cors: { origin: '*' },
 })
+
 export class AutomationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(AutomationsGateway.name);
 

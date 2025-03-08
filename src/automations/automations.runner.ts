@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AutomationsGateway } from './automations.gateway';
 import { NodeVM, VMScript } from 'vm2';
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import * as nodemailer from 'nodemailer';
 import * as Handlebars from 'handlebars';
 import { StatusType } from './automation.types';
@@ -19,8 +19,10 @@ export class AutomationsRunner {
   ) {}
 
   /**
-   * Запустить автоматизацию с переданными eventData.
-   * isTest = true => это тестовый запуск (сохраним isTest в логах).
+   * Запускает автоматизацию с переданными eventData.
+   * @param automationId - Идентификатор автоматизации
+   * @param eventData - Данные события, которые будут переданы в контекст
+   * @param isTest - Флаг тестового запуска (по умолчанию false)
    */
   async runAutomation(automationId: string, eventData: any, isTest = false) {
     // 1) Находим автоматизацию
@@ -50,15 +52,9 @@ export class AutomationsRunner {
     // 3) Проверка общих условий (conditions) автоматизации
     let automationPass = false;
     try {
-      automationPass = await this.checkConditions(automation.conditions, { eventData });
+      automationPass = await this.evaluateConditions(automation.conditions, { eventData });
     } catch (err) {
-      await this.prisma.automationExecutionLog.update({
-        where: { id: executionLog.id },
-        data: {
-          status: 'error',
-          error: String(err),
-        },
-      });
+      await this.updateExecutionLogWithError(executionLog.id, err);
       return;
     }
 
@@ -76,7 +72,7 @@ export class AutomationsRunner {
     }
 
     // 4) Выполняем actions по порядку
-    const actionsSorted = automation.actions.sort((a, b) => a.order - b.order);
+    const actionsSorted = this.getSortedActions(automation.actions);
     const context = { eventData };
 
     let finalResult: any = null;
@@ -86,8 +82,9 @@ export class AutomationsRunner {
     try {
       for (const action of actionsSorted) {
         // 4.1) Проверяем conditions экшена
-        const stepPass = await this.checkConditions(action.conditions, context);
+        const stepPass = await this.evaluateConditions(action.conditions, context);
         if (!stepPass && !isTest) {
+          console.log(`Step skipped: condition not met`);
           // Пропускаем экшен
           await this.prisma.automationActionExecutionLog.create({
             data: {
@@ -100,39 +97,17 @@ export class AutomationsRunner {
           continue;
         }
 
-        let stepResult: any;
-        let stepStatus: StatusType = 'success';
-        let stepError: string | undefined;
-        const consoleLogs: string[] = [];
+        const { stepStatus, stepResult, stepError, consoleLogs } = await this.runActionSafely(
+          action,
+          context,
+          executionLog.id,
+        );
 
-        try {
-          stepResult = await this.runAction(
-            action.type,
-            action.params,
-            context,
-            action.inputVars || {},
-            consoleLogs,
-          );
+        // Записываем результат каждого экшена в контекст
+        if (stepStatus === 'success') {
           context[`step_${action.id}_result`] = stepResult;
-        } catch (err: any) {
-          stepStatus = 'error';
-          stepError = err.message || String(err);
-          this.logger.error(`Action error: ${stepError}`, err.stack);
-        }
-
-        // 4.2) Записываем лог действия
-        await this.prisma.automationActionExecutionLog.create({
-          data: {
-            executionId: executionLog.id,
-            actionId: action.id,
-            status: stepStatus,
-            result: stepStatus === 'success' ? stepResult : undefined,
-            error: stepError,
-            consoleLogs,
-          },
-        });
-
-        if (stepStatus === 'error') {
+        } else {
+          // Если экшен упал с ошибкой, прерываем дальнейшее выполнение
           throw new Error(stepError);
         }
       }
@@ -159,7 +134,46 @@ export class AutomationsRunner {
   }
 
   /**
-   * Метод runAction: в зависимости от типа экшена вызываем соответствующий метод.
+   * Метод, который оборачивает вызов runAction в try/catch
+   * и формирует удобный для логирования результат.
+   */
+  private async runActionSafely(action: any, context: any, executionLogId: string) {
+    const consoleLogs: string[] = [];
+    let stepStatus: StatusType = 'success';
+    let stepError: string | undefined;
+    let stepResult: any;
+
+    try {
+      stepResult = await this.runAction(
+        action.type,
+        action.params,
+        context,
+        action.inputVars || {},
+        consoleLogs,
+      );
+    } catch (err: any) {
+      stepStatus = 'error';
+      stepError = err.message || String(err);
+      this.logger.error(`Action error: ${stepError}`, err.stack);
+    }
+
+    // Записываем лог действия
+    await this.prisma.automationActionExecutionLog.create({
+      data: {
+        executionId: executionLogId,
+        actionId: action.id,
+        status: stepStatus,
+        result: stepStatus === 'success' ? stepResult : undefined,
+        error: stepError,
+        consoleLogs,
+      },
+    });
+
+    return { stepStatus, stepResult, stepError, consoleLogs };
+  }
+
+  /**
+   * Главный метод определения экшена по типу и запуска нужной логики.
    */
   private async runAction(
     type: string,
@@ -167,7 +181,7 @@ export class AutomationsRunner {
     context: any,
     inputVars: any,
     consoleLogs: string[],
-  ) {
+  ): Promise<any> {
     switch (type) {
       case 'runScript':
         return this.runScript(params?.script, context, inputVars, consoleLogs);
@@ -191,16 +205,16 @@ export class AutomationsRunner {
   }
 
   /**
-   * Запуск скрипта в vm2 + сбор console.log
+   * Выполняет скрипт в vm2, собирая console.log в массив consoleLogs.
    */
   private runScript(
     scriptContent: string,
     context: any,
     inputVars: any,
     consoleLogs: string[],
-  ) {
+  ): any {
     if (!scriptContent) {
-      throw new Error('No script content');
+      throw new Error('No script content provided for runScript');
     }
 
     const base = new BaseApi(this.prisma);
@@ -215,26 +229,34 @@ export class AutomationsRunner {
         base,
         context,
         input,
-        fetch: async (url: string, options?: any) => {
-          const resp = await axios.request({
-            method: options?.method || 'GET',
-            url,
-            data: options?.body,
-          });
+        fetch: async (url: string, options?: AxiosRequestConfig) => {
+          const { method = 'GET', data } = options || {};
+          const resp = await axios.request({ method, url, data });
           return resp.data;
         },
+        try: (fn: any) => {
+          try {
+            return fn();
+          } catch (err) {
+            return err;
+          }
+        },
+        catch: (fn: any) => (err: any) => fn(err),
       },
       require: false,
     });
 
     vm.on('console.log', (msg) => {
       consoleLogs.push(String(msg));
+      console.log(msg);
     });
     vm.on('console.error', (err) => {
       consoleLogs.push(`[error] ${String(err)}`);
+      console.error(err);
     });
     vm.on('console.warn', (w) => {
       consoleLogs.push(`[warn] ${String(w)}`);
+      console.warn(w);
     });
 
     const script = new VMScript(scriptContent);
@@ -245,28 +267,32 @@ export class AutomationsRunner {
    * callAPI — делает HTTP-запрос по указанному URL с помощью axios.
    */
   private async callAPI(params: any) {
-    const method = params?.method || 'POST';
-    const url = params?.url;
-    if (!url) throw new Error('callAPI requires url');
+    const { method = 'POST', url, payload = {} } = params || {};
+    if (!url) {
+      throw new Error('callAPI requires "url" parameter');
+    }
 
-    const payload = params?.payload || {};
     const resp = await axios.request({ method, url, data: payload });
     return resp.data;
   }
 
   /**
-   * sendNotification — простой экшен, пример логирования/уведомления.
+   * sendNotification — простой экшен-уведомление.
    */
   private sendNotification(params: any) {
-    const message = params?.message || 'No message';
+    const message = params?.message || 'No message provided';
     this.logger.log(`[sendNotification] -> ${message}`);
     return { notificationSent: true, message };
   }
 
   /**
-   * sendEmail через nodemailer + шаблоны Handlebars.
+   * sendEmail — отправка письма через nodemailer с использованием шаблонов Handlebars.
    */
   private async sendEmail(params: any, context: any) {
+    if (!params?.to) {
+      throw new Error('sendEmail requires "to" parameter');
+    }
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: +process.env.SMTP_PORT || 587,
@@ -282,7 +308,7 @@ export class AutomationsRunner {
 
     const mailOptions = {
       from: process.env.SMTP_FROM || 'no-reply@example.com',
-      to: params?.to,
+      to: params.to,
       subject: subjectTemplate(context),
       text: bodyTemplate(context),
     };
@@ -295,12 +321,12 @@ export class AutomationsRunner {
    * sendSlack — отправка сообщения в Slack через webhookUrl.
    */
   private async sendSlack(params: any, context: any) {
-    const webhookUrl = params?.webhookUrl;
+    const { webhookUrl, text: templateStr } = params || {};
     if (!webhookUrl) {
-      throw new Error('sendSlack requires webhookUrl');
+      throw new Error('sendSlack requires "webhookUrl" parameter');
     }
 
-    const textTemplate = Handlebars.compile(params?.text || '');
+    const textTemplate = Handlebars.compile(templateStr || '');
     const text = textTemplate(context);
 
     const resp = await axios.post(webhookUrl, { text });
@@ -308,58 +334,83 @@ export class AutomationsRunner {
   }
 
   /**
-   * updateRecord — пример обращения к вашей БД (или через BaseApi).
-   * Тут можно расширять логику под нужды.
+   * updateRecord — обновляет запись в базе данных.
    */
   private async updateRecord(params: any) {
-    // Для простоты
-    const tableName = params?.tableName;
-    const recordId = params?.recordId;
-    const fields = params?.fields || {};
-
+    const { tableName, recordId, fields = {} } = params || {};
     if (!tableName || !recordId) {
-      throw new Error('updateRecord requires tableName and recordId');
+      throw new Error('updateRecord requires both "tableName" and "recordId"');
     }
 
     const base = new BaseApi(this.prisma);
     const table = base.getTable(tableName);
     await table.updateRecordAsync(recordId, fields);
+
     return { updated: true, recordId, fields };
   }
 
+  /**
+   * createRecord — создаёт новую запись в базе данных.
+   */
   private async createRecord(params: any) {
-    const tableName = params?.tableName;
-    const fields = params?.fields || {};
+    const { tableName, fields = {} } = params || {};
     if (!tableName) {
-      throw new Error('createRecord requires tableName');
+      throw new Error('createRecord requires "tableName"');
     }
 
     const base = new BaseApi(this.prisma);
     const table = base.getTable(tableName);
-    const newId = await table.createRecordAsync(fields);
-    return { createdId: newId };
+    const createdId = await table.createRecordAsync(fields);
+
+    return { created: true, createdId };
   }
 
+  /**
+   * deleteRecord — удаляет запись из базы данных.
+   */
   private async deleteRecord(params: any) {
-    const tableName = params?.tableName;
-    const recordId = params?.recordId;
+    const { tableName, recordId } = params || {};
     if (!tableName || !recordId) {
-      throw new Error('deleteRecord requires tableName and recordId');
+      throw new Error('deleteRecord requires both "tableName" and "recordId"');
     }
 
     const base = new BaseApi(this.prisma);
     const table = base.getTable(tableName);
     await table.deleteRecordAsync(recordId);
+
     return { deleted: true, recordId };
   }
 
   /**
-   * Пример примитивной проверки условий (JSON).
-   * Можно расширять под AND/OR, сравнения, in, contains и т. д.
+   * Простая проверка условий (JSON). В реальном проекте стоит
+   * распарсить `conditions` и реализовать логику AND/OR, сравнения,
+   * in, contains и т. д. Возвращает true/false в зависимости
+   * от того, выполнены ли условия.
    */
-  private async checkConditions(conditions: any, context: any): Promise<boolean> {
+  private async evaluateConditions(conditions: any, context: any): Promise<boolean> {
     if (!conditions) return true;
-    // В реальном проекте распарсите и реализуйте сложную логику
+    // В реальном проекте добавить полноценный парсинг.
     return true;
+  }
+
+  /**
+   * Получение actions, отсортированных по order.
+   */
+  private getSortedActions(actions: any[]) {
+    return actions.sort((a, b) => a.order - b.order);
+  }
+
+  /**
+   * Обновляет ExecutionLog, выставляя статус 'error' и сохраняя
+   * сообщение об ошибке.
+   */
+  private async updateExecutionLogWithError(executionLogId: string, err: any) {
+    await this.prisma.automationExecutionLog.update({
+      where: { id: executionLogId },
+      data: {
+        status: 'error',
+        error: String(err),
+      },
+    });
   }
 }
